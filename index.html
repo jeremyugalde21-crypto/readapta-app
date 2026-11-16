@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#102a43">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Readapta">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>Readapta</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- INICIO -->
+<section id="s-home" class="screen">
+  <header class="top">
+    <img src="icons/icon-192.png" alt="" class="logo">
+    <div>
+      <h1>Readapta</h1>
+      <p class="muted">Juegos interactivos para readaptación</p>
+    </div>
+  </header>
+  <div class="cards">
+    <button class="card" data-go="s-config">
+      <strong>Reacción lateral</strong>
+      <span>Tiempo de reacción y cambio de dirección. Tren inferior.</span>
+    </button>
+    <button class="card disabled" disabled>
+      <strong>Dianas</strong>
+      <span>Próximamente</span>
+    </button>
+    <button class="card disabled" disabled>
+      <strong>Equilibrio</strong>
+      <span>Próximamente</span>
+    </button>
+    <button class="card secondary" data-go="s-history">
+      <strong>Historial</strong>
+      <span>Resultados guardados por jugador</span>
+    </button>
+  </div>
+  <p class="hint">Montaje: dispositivo en trípode a 2,5–3 m, a la altura de la cadera. El atleta debe verse de cuerpo entero, incluidos los pies. El vídeo no sale del dispositivo.</p>
+</section>
+
+<!-- CONFIGURACIÓN -->
+<section id="s-config" class="screen" hidden>
+  <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Reacción lateral</h2></header>
+  <form id="cfg" class="form">
+    <label>Jugador<input name="player" list="players" placeholder="Nombre" required autocomplete="off"></label>
+    <datalist id="players"></datalist>
+    <label>Lado lesionado
+      <select name="injured"><option value="">Ninguno / no aplica</option><option value="izq">Izquierdo</option><option value="der">Derecho</option></select>
+    </label>
+    <label>Preset
+      <select name="preset">
+        <option value="">Personalizado</option>
+        <option value="inicial">Inicial: lento, distancia corta</option>
+        <option value="intermedia">Intermedia: ritmo medio</option>
+        <option value="avanzada">Avanzada: rápido, distancia larga</option>
+        <option value="vuelta">Vuelta al juego: decisión y falsos</option>
+      </select>
+    </label>
+    <div class="row">
+      <label>Duración serie (s)<input type="number" name="duration" min="10" max="180" value="30"></label>
+      <label>Series<input type="number" name="sets" min="1" max="10" value="3"></label>
+      <label>Descanso (s)<input type="number" name="rest" min="10" max="300" value="45"></label>
+    </div>
+    <div class="row">
+      <label>Espera mín. (s)<input type="number" name="waitMin" min="0.3" max="10" step="0.1" value="1.0"></label>
+      <label>Espera máx. (s)<input type="number" name="waitMax" min="0.3" max="10" step="0.1" value="2.5"></label>
+      <label>Tiempo máx. respuesta (s)<input type="number" name="maxResp" min="0.5" max="5" step="0.1" value="2.0"></label>
+    </div>
+    <label>Distancia a recorrer
+      <select name="distance">
+        <option value="1.0">Corta (≈1 paso)</option>
+        <option value="1.8" selected>Media (≈2 pasos)</option>
+        <option value="2.6">Larga (≈3 pasos)</option>
+      </select>
+    </label>
+    <label>Lados
+      <select name="sides"><option value="both">Ambos</option><option value="izq">Solo izquierda</option><option value="der">Solo derecha</option></select>
+    </label>
+    <label>Estímulo
+      <select name="stimulus">
+        <option value="arrow">Flechas</option>
+        <option value="color">Colores (azul = izquierda, amarillo = derecha)</option>
+        <option value="inverse">Flecha inversa (ir al lado contrario)</option>
+      </select>
+    </label>
+    <label>Estímulos falsos (rojo = no moverse)
+      <select name="falsePct"><option value="0">No</option><option value="15">15 %</option><option value="25">25 %</option></select>
+    </label>
+    <div class="row">
+      <label class="check"><input type="checkbox" name="sound" checked> Sonido</label>
+      <label>Cámara
+        <select name="camera"><option value="user">Frontal (pantalla hacia el atleta)</option><option value="environment">Trasera</option></select>
+      </label>
+    </div>
+    <button type="submit" class="primary">Empezar</button>
+  </form>
+</section>
+
+<!-- JUEGO -->
+<section id="s-play" class="screen play" hidden>
+  <div id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="stim"></div>
+  <div id="overlay"></div>
+  <div class="hud">
+    <span id="hud-status" class="pill">Cargando…</span>
+    <span id="hud-set" class="pill"></span>
+    <span id="hud-time" class="pill"></span>
+    <span id="hud-score" class="pill"></span>
+  </div>
+  <div class="play-controls">
+    <button id="btn-stop" class="ghost">Terminar</button>
+  </div>
+</section>
+
+<!-- RESULTADOS -->
+<section id="s-results" class="screen" hidden>
+  <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Resultados</h2></header>
+  <div id="results"></div>
+  <div class="actions">
+    <button class="primary" data-go="s-config">Repetir</button>
+    <button class="secondary-btn" data-go="s-history">Historial</button>
+  </div>
+</section>
+
+<!-- HISTORIAL -->
+<section id="s-history" class="screen" hidden>
+  <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Historial</h2></header>
+  <label class="form">Jugador<select id="hist-player"></select></label>
+  <div id="history"></div>
+  <div class="actions">
+    <button id="btn-csv" class="secondary-btn">Exportar CSV</button>
+  </div>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
