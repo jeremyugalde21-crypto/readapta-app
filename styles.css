@@ -59,3 +59,9 @@ th { color: var(--muted); font-weight: 600; }
 .note { color: var(--muted); font-size: 13px; margin-top: 10px; }
 .empty { color: var(--muted); padding: 20px 0; }
 .del { background: none; border: 0; color: var(--muted); font-size: 18px; }
+fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+fieldset[hidden] { display: none; }
+h3 { margin: 18px 0 8px; font-size: 17px; }
+#stim.band { opacity: .45; }
+.play.mirror-view #stage video { opacity: .9; }
+.overflow { overflow-x: auto; }

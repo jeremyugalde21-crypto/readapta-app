@@ -26,17 +26,17 @@
     </div>
   </header>
   <div class="cards">
-    <button class="card" data-go="s-config">
+    <button class="card" data-game="lateral">
       <strong>Reacción lateral</strong>
       <span>Tiempo de reacción y cambio de dirección. Tren inferior.</span>
     </button>
-    <button class="card disabled" disabled>
+    <button class="card" data-game="dianas">
       <strong>Dianas</strong>
-      <span>Próximamente</span>
+      <span>Alcance y coordinación con manos o pies. Tren superior e inferior.</span>
     </button>
-    <button class="card disabled" disabled>
+    <button class="card" data-game="equilibrio">
       <strong>Equilibrio</strong>
-      <span>Próximamente</span>
+      <span>Control postural bipodal, monopodal o en sentadilla, con doble tarea.</span>
     </button>
     <button class="card secondary" data-go="s-history">
       <strong>Historial</strong>
@@ -48,59 +48,109 @@
 
 <!-- CONFIGURACIÓN -->
 <section id="s-config" class="screen" hidden>
-  <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Reacción lateral</h2></header>
+  <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2 id="cfg-title"></h2></header>
   <form id="cfg" class="form">
     <label>Jugador<input name="player" list="players" placeholder="Nombre" required autocomplete="off"></label>
     <datalist id="players"></datalist>
     <label>Lado lesionado
       <select name="injured"><option value="">Ninguno / no aplica</option><option value="izq">Izquierdo</option><option value="der">Derecho</option></select>
     </label>
-    <label>Preset
-      <select name="preset">
-        <option value="">Personalizado</option>
-        <option value="inicial">Inicial: lento, distancia corta</option>
-        <option value="intermedia">Intermedia: ritmo medio</option>
-        <option value="avanzada">Avanzada: rápido, distancia larga</option>
-        <option value="vuelta">Vuelta al juego: decisión y falsos</option>
-      </select>
-    </label>
+    <label>Preset<select name="preset"></select></label>
     <div class="row">
-      <label>Duración serie (s)<input type="number" name="duration" min="10" max="180" value="30"></label>
+      <label><span id="lbl-duration">Duración serie (s)</span><input type="number" name="duration" min="10" max="180" value="30"></label>
       <label>Series<input type="number" name="sets" min="1" max="10" value="3"></label>
       <label>Descanso (s)<input type="number" name="rest" min="10" max="300" value="45"></label>
     </div>
-    <div class="row">
-      <label>Espera mín. (s)<input type="number" name="waitMin" min="0.3" max="10" step="0.1" value="1.0"></label>
-      <label>Espera máx. (s)<input type="number" name="waitMax" min="0.3" max="10" step="0.1" value="2.5"></label>
-      <label>Tiempo máx. respuesta (s)<input type="number" name="maxResp" min="0.5" max="5" step="0.1" value="2.0"></label>
-    </div>
-    <label>Distancia a recorrer
-      <select name="distance">
-        <option value="1.0">Corta (≈1 paso)</option>
-        <option value="1.8" selected>Media (≈2 pasos)</option>
-        <option value="2.6">Larga (≈3 pasos)</option>
-      </select>
-    </label>
-    <label>Lados
-      <select name="sides"><option value="both">Ambos</option><option value="izq">Solo izquierda</option><option value="der">Solo derecha</option></select>
-    </label>
-    <label>Estímulo
-      <select name="stimulus">
-        <option value="arrow">Flechas</option>
-        <option value="color">Colores (azul = izquierda, amarillo = derecha)</option>
-        <option value="inverse">Flecha inversa (ir al lado contrario)</option>
-      </select>
-    </label>
-    <label>Estímulos falsos (rojo = no moverse)
-      <select name="falsePct"><option value="0">No</option><option value="15">15 %</option><option value="25">25 %</option></select>
-    </label>
+
+    <!-- Reacción lateral -->
+    <fieldset data-game="lateral">
+      <div class="row">
+        <label>Espera mín. (s)<input type="number" name="waitMin" min="0.3" max="10" step="0.1" value="1.0"></label>
+        <label>Espera máx. (s)<input type="number" name="waitMax" min="0.3" max="10" step="0.1" value="2.5"></label>
+        <label>Tiempo máx. respuesta (s)<input type="number" name="maxResp" min="0.5" max="5" step="0.1" value="2.0"></label>
+      </div>
+      <label>Distancia a recorrer
+        <select name="distance">
+          <option value="1.0">Corta (≈1 paso)</option>
+          <option value="1.8" selected>Media (≈2 pasos)</option>
+          <option value="2.6">Larga (≈3 pasos)</option>
+        </select>
+      </label>
+      <label>Lados
+        <select name="sides"><option value="both">Ambos</option><option value="izq">Solo izquierda</option><option value="der">Solo derecha</option></select>
+      </label>
+      <label>Estímulo
+        <select name="stimulus">
+          <option value="arrow">Flechas</option>
+          <option value="color">Colores (azul = izquierda, amarillo = derecha)</option>
+          <option value="inverse">Flecha inversa (ir al lado contrario)</option>
+        </select>
+      </label>
+      <label>Estímulos falsos (rojo = no moverse)
+        <select name="falsePct"><option value="0">No</option><option value="15">15 %</option><option value="25">25 %</option></select>
+      </label>
+    </fieldset>
+
+    <!-- Dianas -->
+    <fieldset data-game="dianas">
+      <label>Con qué se tocan
+        <select name="dParts">
+          <option value="hand">Manos</option>
+          <option value="foot">Pies</option>
+          <option value="mix">Mixto (azul = mano, naranja = pie)</option>
+        </select>
+      </label>
+      <label>Lado del cuerpo
+        <select name="dSide"><option value="both">Ambos</option><option value="izq">Solo izquierdo</option><option value="der">Solo derecho</option></select>
+      </label>
+      <label>Altura (manos)
+        <select name="dHeight">
+          <option value="all">Todas</option>
+          <option value="high">Altas (por encima de la cabeza)</option>
+          <option value="mid">Medias (hombro)</option>
+          <option value="low">Bajas (obliga a flexionar)</option>
+        </select>
+      </label>
+      <label>Alcance
+        <select name="dReach"><option value="near">Cerca (sin dar paso)</option><option value="far">Lejos (obliga a dar un paso)</option></select>
+      </label>
+      <div class="row">
+        <label>Tiempo por diana (s)<input type="number" name="dTime" min="0.8" max="8" step="0.1" value="3"></label>
+        <label>Tamaño
+          <select name="dSize"><option value="0.55">Grande</option><option value="0.42" selected>Normal</option><option value="0.3">Pequeña</option></select>
+        </label>
+      </div>
+      <label>Modo
+        <select name="dSeq"><option value="1">Una diana cada vez</option><option value="3">Secuencia de 3 (tocar en orden 1-2-3)</option></select>
+      </label>
+    </fieldset>
+
+    <!-- Equilibrio -->
+    <fieldset data-game="equilibrio">
+      <label>Postura
+        <select name="ePosture">
+          <option value="bi">Bipodal</option>
+          <option value="mono-alt">Monopodal alternando pierna por serie</option>
+          <option value="mono-izq">Monopodal sobre pierna izquierda</option>
+          <option value="mono-der">Monopodal sobre pierna derecha</option>
+          <option value="squat">Sentadilla isométrica</option>
+        </select>
+      </label>
+      <label>Zona objetivo
+        <select name="eZone"><option value="0.35">Amplia</option><option value="0.22" selected>Media</option><option value="0.12">Estrecha</option></select>
+      </label>
+      <label>Doble tarea
+        <select name="eDual"><option value="none">No</option><option value="arms">Levantar brazo según color (azul = izq., amarillo = der.)</option></select>
+      </label>
+    </fieldset>
+
     <div class="row">
       <label class="check"><input type="checkbox" name="sound" checked> Sonido</label>
       <label class="check"><input type="checkbox" name="skeleton"> Mostrar esqueleto</label>
-      <label>Cámara
-        <select name="camera"><option value="user">Frontal (pantalla hacia el atleta)</option><option value="environment">Trasera</option></select>
-      </label>
     </div>
+    <label>Cámara
+      <select name="camera"><option value="user">Frontal (pantalla hacia el atleta)</option><option value="environment">Trasera</option></select>
+    </label>
     <button type="submit" class="primary">Empezar</button>
   </form>
 </section>
@@ -129,7 +179,7 @@
   <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Resultados</h2></header>
   <div id="results"></div>
   <div class="actions">
-    <button class="primary" data-go="s-config">Repetir</button>
+    <button class="primary" id="btn-repeat">Repetir</button>
     <button class="secondary-btn" data-go="s-history">Historial</button>
   </div>
 </section>
@@ -137,7 +187,10 @@
 <!-- HISTORIAL -->
 <section id="s-history" class="screen" hidden>
   <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Historial</h2></header>
-  <label class="form">Jugador<select id="hist-player"></select></label>
+  <div class="row form">
+    <label>Jugador<select id="hist-player"></select></label>
+    <label>Juego<select id="hist-game"><option value="">Todos</option><option value="lateral">Reacción lateral</option><option value="dianas">Dianas</option><option value="equilibrio">Equilibrio</option></select></label>
+  </div>
   <div id="history"></div>
   <div class="actions">
     <button id="btn-csv" class="secondary-btn">Exportar CSV</button>

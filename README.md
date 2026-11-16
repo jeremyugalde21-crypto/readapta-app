@@ -5,7 +5,8 @@ Juegos interactivos para readaptación deportiva. La cámara del móvil o tablet
 ## Juegos
 
 - **Reacción lateral**: tiempo de reacción y cambio de dirección a izquierda/derecha, con flechas, colores, flecha inversa y estímulos falsos.
-- Dianas y Equilibrio: próximamente.
+- **Dianas**: tocar dianas con manos o pies, a distintas alturas y alcances, simples o en secuencia 1-2-3.
+- **Equilibrio**: mantener el centro de la cadera en una zona en bipodal, monopodal (alternando pierna) o sentadilla, con aviso de apoyo del pie libre, rodilla hacia dentro y doble tarea opcional.
 
 ## Uso
 
