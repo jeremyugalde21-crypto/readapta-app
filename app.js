@@ -48,7 +48,7 @@ form.addEventListener("submit", (e) => {
     duration: +f.get("duration"), sets: +f.get("sets"), rest: +f.get("rest"),
     waitMin: +f.get("waitMin"), waitMax: Math.max(+f.get("waitMin"), +f.get("waitMax")), maxResp: +f.get("maxResp"),
     distance: +f.get("distance"), sides: f.get("sides"), stimulus: f.get("stimulus"),
-    falsePct: +f.get("falsePct"), sound: !!f.get("sound"), camera: f.get("camera"),
+    falsePct: +f.get("falsePct"), sound: !!f.get("sound"), skeleton: !!f.get("skeleton"), camera: f.get("camera"),
   };
   localStorage.setItem("readapta.lastcfg", JSON.stringify(cfg));
   startGame(cfg);
@@ -213,8 +213,7 @@ function tick() {
   let full = false;
   if (pose) {
     game.lastPoseT = t;
-    const du = new DrawingUtils(ctx);
-    du.drawConnectors(pose, PoseLandmarker.POSE_CONNECTIONS, { color: "#4fd1c5", lineWidth: 4 });
+    if (game.cfg.skeleton) new DrawingUtils(ctx).drawConnectors(pose, PoseLandmarker.POSE_CONNECTIONS, { color: "#4fd1c5", lineWidth: 4 });
     full = vis(pose[L.nose]) && vis(pose[L.lAnk]) && vis(pose[L.rAnk]);
     const hipX = (pose[L.lHip].x + pose[L.rHip].x) / 2;
     const shW = Math.abs(pose[L.lSh].x - pose[L.rSh].x);
