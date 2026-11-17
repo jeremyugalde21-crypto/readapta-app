@@ -38,6 +38,14 @@
       <strong>Equilibrio</strong>
       <span>Control postural bipodal, monopodal o en sentadilla, con doble tarea.</span>
     </button>
+    <button class="card" data-game="saltos">
+      <strong>Aterrizaje suave</strong>
+      <span>Saltos bipodales o monopodales: altura, aterrizaje y simetría.</span>
+    </button>
+    <button class="card" data-game="esquiva">
+      <strong>Esquiva</strong>
+      <span>Agacharse y desplazarse para esquivar objetos. Reacción y agilidad.</span>
+    </button>
     <button class="card secondary" data-go="s-history">
       <strong>Historial</strong>
       <span>Resultados guardados por jugador</span>
@@ -144,6 +152,39 @@
       </label>
     </fieldset>
 
+    <!-- Aterrizaje suave -->
+    <fieldset data-game="saltos">
+      <label>Postura
+        <select name="jPosture">
+          <option value="bi">Bipodal</option>
+          <option value="mono-alt">Monopodal alternando pierna por serie</option>
+          <option value="mono-izq">Monopodal pierna izquierda</option>
+          <option value="mono-der">Monopodal pierna derecha</option>
+        </select>
+      </label>
+      <label>Modo
+        <select name="jMode"><option value="signal">Salto a la señal (uno cada vez, aguantar 1 s)</option><option value="cont">Saltos continuos (tiempo de contacto)</option></select>
+      </label>
+      <div class="row">
+        <label>Espera mín. señal (s)<input type="number" name="jWaitMin" min="0.5" max="10" step="0.1" value="2.0"></label>
+        <label>Espera máx. señal (s)<input type="number" name="jWaitMax" min="0.5" max="10" step="0.1" value="3.5"></label>
+      </div>
+    </fieldset>
+
+    <!-- Esquiva -->
+    <fieldset data-game="esquiva">
+      <label>Objetos
+        <select name="xTypes"><option value="mix">Mixto (agacharse y laterales)</option><option value="side">Solo laterales (desplazarse)</option><option value="duck">Solo agacharse</option></select>
+      </label>
+      <label>Velocidad
+        <select name="xSpeed"><option value="2.2">Lenta</option><option value="1.6" selected>Media</option><option value="1.2">Rápida</option><option value="0.9">Muy rápida</option></select>
+      </label>
+      <div class="row">
+        <label>Pausa mín. (s)<input type="number" name="xGapMin" min="0.2" max="10" step="0.1" value="1.0"></label>
+        <label>Pausa máx. (s)<input type="number" name="xGapMax" min="0.2" max="10" step="0.1" value="2.0"></label>
+      </div>
+    </fieldset>
+
     <div class="row">
       <label class="check"><input type="checkbox" name="sound" checked> Sonido</label>
       <label class="check"><input type="checkbox" name="skeleton"> Mostrar esqueleto</label>
@@ -189,7 +230,7 @@
   <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Historial</h2></header>
   <div class="row form">
     <label>Jugador<select id="hist-player"></select></label>
-    <label>Juego<select id="hist-game"><option value="">Todos</option><option value="lateral">Reacción lateral</option><option value="dianas">Dianas</option><option value="equilibrio">Equilibrio</option></select></label>
+    <label>Juego<select id="hist-game"><option value="">Todos</option><option value="lateral">Reacción lateral</option><option value="dianas">Dianas</option><option value="equilibrio">Equilibrio</option><option value="saltos">Aterrizaje suave</option><option value="esquiva">Esquiva</option></select></label>
   </div>
   <div id="history"></div>
   <div class="actions">

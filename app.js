@@ -572,7 +572,317 @@ const equilibrio = {
   histDetail: (m) => (m.zoneL != null || m.zoneR != null ? `En zona I/D: ${pctTxt(m.zoneL)} / ${pctTxt(m.zoneR)} · apoyos ${m.touches}` : `Rodilla dentro ${pctTxt(m.valgusPct)}`),
 };
 
-const GAMES = { lateral, dianas, equilibrio };
+// ======================================================================
+// JUEGO 4: ATERRIZAJE SUAVE (saltos)
+// ======================================================================
+const JUMP_POST = {
+  bi: { label: "Bipodal", hint: "De pie sobre los dos pies, quieto" },
+  "mono-izq": { label: "Pierna izquierda", hint: "Apoyado solo en la pierna IZQUIERDA, pie derecho levantado", stance: -1 },
+  "mono-der": { label: "Pierna derecha", hint: "Apoyado solo en la pierna DERECHA, pie izquierdo levantado", stance: 1 },
+};
+const saltos = {
+  name: "Aterrizaje suave",
+  durationLabel: "Duración serie (s)",
+  calibEachSet: true,
+  presets: {
+    inicial:    { duration: 30, sets: 3, rest: 60, jPosture: "bi", jMode: "signal", jWaitMin: 2.0, jWaitMax: 3.5 },
+    intermedia: { duration: 30, sets: 4, rest: 60, jPosture: "mono-alt", jMode: "signal", jWaitMin: 1.8, jWaitMax: 3.0 },
+    avanzada:   { duration: 20, sets: 4, rest: 60, jPosture: "bi", jMode: "cont", jWaitMin: 1.5, jWaitMax: 2.5 },
+    vuelta:     { duration: 20, sets: 6, rest: 60, jPosture: "mono-alt", jMode: "cont", jWaitMin: 1.0, jWaitMax: 2.0 },
+  },
+  presetNames: { inicial: "Inicial: bipodal, salto a la señal", intermedia: "Intermedia: monopodal alternando, a la señal", avanzada: "Avanzada: saltos continuos bipodales", vuelta: "Vuelta al juego: saltos continuos monopodales" },
+  readCfg: (f) => ({ posture: f.get("jPosture"), mode: f.get("jMode"), waitMin: +f.get("jWaitMin"), waitMax: Math.max(+f.get("jWaitMin"), +f.get("jWaitMax")) }),
+  postureFor(g) { const p = g.cfg.posture; return p === "mono-alt" ? (g.set % 2 === 1 ? "mono-izq" : "mono-der") : p; },
+  calibHintFor(g) { return JUMP_POST[saltos.postureFor(g)].hint; },
+  calibCheck(g, pose) {
+    const post = JUMP_POST[saltos.postureFor(g)];
+    if (!post.stance) return true;
+    const st = pose[post.stance > 0 ? L.rAnk : L.lAnk], fr = pose[post.stance > 0 ? L.lAnk : L.rAnk];
+    return (st.y - fr.y) * canvas.height > 0.25 * g.shW * canvas.width;
+  },
+  calibFailMsg: "Levanta más el pie libre",
+  afterCalib(g, pose) {
+    g.calibWarn = "";
+    g.posture = saltos.postureFor(g);
+    const H = canvas.height, W = canvas.width, post = JUMP_POST[g.posture];
+    const ankY = post.stance ? pose[post.stance > 0 ? L.rAnk : L.lAnk].y * H : Math.max(pose[L.lAnk].y, pose[L.rAnk].y) * H;
+    g.jref = { floor: ankY, hipY: g.center.y * H, hipX: g.center.x * W, leg: Math.max(20, ankY - g.center.y * H), shWpx: g.center.shW * W };
+  },
+  footY(g, pose) {
+    const post = JUMP_POST[g.posture], H = canvas.height;
+    return post.stance ? pose[post.stance > 0 ? L.rAnk : L.lAnk].y * H : Math.max(pose[L.lAnk].y, pose[L.rAnk].y) * H;
+  },
+  startSet(g) {
+    Object.assign(g, { phase: g.cfg.mode === "signal" ? "ready" : "free", air: false, readySince: null, land: null, lastLandT: null, goAt: null });
+    if (g.cfg.mode === "cont") say("¡Salta!", "Saltos seguidos, aterriza suave");
+  },
+  update(g, t, pose) {
+    const c = g.cfg, R = g.jref;
+    if (t >= g.setEnd && g.phase !== "stick") { saltos.closeLanding(g, t); return endSet(); }
+    if (pose) {
+      const fy = saltos.footY(g, pose);
+      const hip = { x: (pose[L.lHip].x + pose[L.rHip].x) / 2 * canvas.width, y: (pose[L.lHip].y + pose[L.rHip].y) / 2 * canvas.height };
+      const up = R.floor - fy;
+      // despegue
+      if (!g.air && up > 0.07 * R.leg) {
+        g.air = true; g.takeoffT = t;
+        saltos.closeLanding(g, t); // cierra la medición del aterrizaje anterior (modo continuo)
+        if (g.phase === "go") { g.rt = t - g.goAt; hideStim(); }
+      }
+      // aterrizaje
+      else if (g.air && up < 0.03 * R.leg) {
+        g.air = false;
+        const flight = t - g.takeoffT;
+        if (flight >= 120 && flight <= 1200) {
+          const contact = g.lastLandT != null && g.lastTakeoffWasFromLand && g.takeoffT - g.lastLandT < 1000 ? g.takeoffT - g.lastLandT : null;
+          g.land = { t, flight, h: (9.81 * (flight / 1000) ** 2 / 8) * 100, hipX0: hip.x, maxHipY: hip.y, maxValgus: 0, maxSway: 0, contactPrev: contact, rt: g.rt ?? null };
+          g.lastLandT = t; g.lastTakeoffWasFromLand = true; g.rt = null;
+          if (c.mode === "signal") Object.assign(g, { phase: "stick", stickEnd: t + 1000 });
+        }
+      }
+      // medición del aterrizaje (hasta 600 ms o hasta el siguiente despegue)
+      if (g.land && !g.air) {
+        const el = t - g.land.t;
+        if (el <= 600) {
+          g.land.maxHipY = Math.max(g.land.maxHipY, hip.y);
+          const post = JUMP_POST[g.posture];
+          const legs = post.stance ? [post.stance] : [-1, 1];
+          g.land.maxValgus = Math.max(g.land.maxValgus, ...legs.map((s) => equilibrio.valgus(pose, s, R.shWpx)));
+        }
+        if (el <= 1000) g.land.maxSway = Math.max(g.land.maxSway, Math.abs(hip.x - g.land.hipX0) / R.shWpx);
+        if (c.mode === "cont" && el > 1000) saltos.closeLanding(g, t);
+      }
+      if (c.mode === "cont" && !g.air && g.lastLandT != null && t - g.lastLandT > 1000) g.lastTakeoffWasFromLand = false;
+    }
+    switch (g.phase) {
+      case "ready": {
+        if (pose && !g.air) {
+          g.readySince ??= t;
+          say("Preparado…", JUMP_POST[g.posture].label);
+          if (t - g.readySince > 400 && !g.goAt) { g.goAt = t + rand(c.waitMin, c.waitMax) * 1000; }
+          if (g.goAt && t >= g.goAt) {
+            stim.className = "show"; stim.style.background = "transparent"; stim.style.color = "#68d391"; stim.textContent = "⬆";
+            beep(980, 120); say(""); g.phase = "go";
+          }
+        } else { g.readySince = null; }
+        break;
+      }
+      case "go":
+        if (!g.air && t - g.goAt > 2500) {
+          g.trials.push({ set: g.set, posture: g.posture, outcome: "miss" });
+          hideStim(); beep(220, 200); Object.assign(g, { phase: "ready", readySince: null, goAt: null });
+        }
+        break;
+      case "stick":
+        if (t >= g.stickEnd) { saltos.closeLanding(g, t); Object.assign(g, { phase: "ready", readySince: null, goAt: null }); }
+        break;
+    }
+    const st = g.trials.filter((x) => x.set === g.set && x.outcome === "jump");
+    const soft = st.filter((x) => x.soft).length;
+    hud.score.textContent = `Saltos ${st.length} · suaves ${soft}`;
+    if (pose) saltos.draw(g);
+  },
+  closeLanding(g) {
+    const L0 = g.land; if (!L0) return;
+    g.land = null;
+    const R = g.jref;
+    const absorb = (100 * (L0.maxHipY - R.hipY)) / R.leg; // descenso de cadera tras aterrizar (% pierna)
+    const valgus = L0.maxValgus > 0.2, stable = L0.maxSway < 0.5, softDepth = absorb >= 8;
+    const soft = !valgus && stable && softDepth;
+    g.trials.push({ set: g.set, posture: g.posture, stance: JUMP_POST[g.posture].stance || 0, outcome: "jump",
+      h: L0.h, flight: L0.flight, contact: L0.contactPrev, absorb, valgus, sway: L0.maxSway, stable, soft, rt: L0.rt });
+    flash(soft ? "#38a16966" : "#ed893666", true); setTimeout(hideStim, 250);
+    beep(soft ? 1200 : 400, 90);
+    const why = soft ? "¡Aterrizaje suave!" : valgus ? "Rodilla hacia dentro" : !softDepth ? "Aterrizaje rígido: flexiona más" : "Estabiliza el aterrizaje";
+    g.lastMsg = { txt: `${Math.round(L0.h)} cm · ${why}`, until: now() + 1500 };
+  },
+  draw(g) {
+    const R = g.jref, W = canvas.width;
+    ctx.strokeStyle = "#ffffff55"; ctx.lineWidth = 3; ctx.setLineDash([10, 10]);
+    ctx.beginPath(); ctx.moveTo(0, R.floor); ctx.lineTo(W, R.floor); ctx.stroke(); ctx.setLineDash([]);
+    if (g.lastMsg && now() < g.lastMsg.until) text(R.hipX, Math.max(60, R.hipY - R.leg * 1.4), g.lastMsg.txt, 44);
+  },
+  summarize(trials) {
+    const j = trials.filter((t) => t.outcome === "jump"), miss = trials.filter((t) => t.outcome === "miss").length;
+    const by = (s) => j.filter((t) => t.stance === s);
+    const hL = mean(by(-1).map((t) => t.h)), hR = mean(by(1).map((t) => t.h));
+    const contacts = j.map((t) => t.contact).filter((v) => v != null);
+    const rsi = j.filter((t) => t.contact).map((t) => (t.h / 100) / (t.contact / 1000));
+    return {
+      jumps: j.length, misses: miss, h: mean(j.map((t) => t.h)), hMax: j.length ? Math.max(...j.map((t) => t.h)) : null,
+      softPct: pct(j.filter((t) => t.soft).length, j.length), valgusPct: pct(j.filter((t) => t.valgus).length, j.length),
+      absorb: mean(j.map((t) => t.absorb)), stablePct: pct(j.filter((t) => t.stable).length, j.length),
+      contact: mean(contacts), rsi: mean(rsi), rt: mean(j.map((t) => t.rt).filter((v) => v != null)),
+      hL, hR, softL: pct(by(-1).filter((t) => t.soft).length, by(-1).length), softR: pct(by(1).filter((t) => t.soft).length, by(1).length),
+      nL: by(-1).length, nR: by(1).length,
+    };
+  },
+  asym(m, inj) {
+    if (m.hL == null || m.hR == null) return null;
+    if (inj === "izq" || inj === "der") {
+      const v = (100 * (inj === "izq" ? m.hL : m.hR)) / (inj === "izq" ? m.hR : m.hL);
+      return { v, txt: `${Math.round(v)} %`, label: "LSI altura (lesionada / sana)" };
+    }
+    const v = (100 * Math.min(m.hL, m.hR)) / Math.max(m.hL, m.hR);
+    return { v, txt: `${Math.round(v)} %`, label: "Simetría de altura entre piernas" };
+  },
+  results(s) {
+    const m = s.summary, a = saltos.asym(m, s.injured), cm = (v) => (v == null ? "–" : `${v.toFixed(1)} cm`);
+    const mono = m.nL || m.nR;
+    return `
+    <div class="stats">
+      ${stat(m.jumps, `Saltos${m.misses ? ` (${m.misses} sin respuesta)` : ""}`)}
+      ${stat(cm(m.h), `Altura media · máx. ${cm(m.hMax)}`)}
+      ${stat(pctTxt(m.softPct), "Aterrizajes suaves")}
+      ${mono ? stat(a ? a.txt : "–", a ? a.label : "Simetría") : stat(pctTxt(m.valgusPct), "Aterrizajes con rodilla hacia dentro")}
+      ${m.contact != null ? stat(ms(m.contact), `Tiempo de contacto · RSI ${m.rsi != null ? m.rsi.toFixed(2) : "–"}`) : ""}
+      ${m.rt != null ? stat(ms(m.rt), "Reacción a la señal") : ""}
+    </div>
+    <table>
+      <tr><th>Calidad del aterrizaje</th><th></th></tr>
+      <tr><td>Rodilla hacia dentro</td><td>${pctTxt(m.valgusPct)} de los saltos</td></tr>
+      <tr><td>Amortiguación (bajada de cadera)</td><td>${m.absorb != null ? Math.round(m.absorb) + " % de la pierna" : "–"}</td></tr>
+      <tr><td>Estable en 1 s</td><td>${pctTxt(m.stablePct)}</td></tr>
+    </table>
+    ${mono ? `<h3>Por pierna</h3><table>
+      <tr><th></th><th>Izquierda</th><th>Derecha</th></tr>
+      <tr><td>Saltos</td><td>${m.nL}</td><td>${m.nR}</td></tr>
+      <tr><td>Altura</td><td>${cm(m.hL)}</td><td>${cm(m.hR)}</td></tr>
+      <tr><td>Suaves</td><td>${pctTxt(m.softL)}</td><td>${pctTxt(m.softR)}</td></tr>
+    </table>` : ""}
+    <h3>Por serie</h3>
+    <table>
+      <tr><th>Serie</th><th>Saltos</th><th>Altura</th><th>Suaves</th><th>Rodilla dentro</th></tr>
+      ${s.perSet.map((p) => `<tr><td>${p.set}</td><td>${p.jumps}</td><td>${cm(p.h)}</td><td>${pctTxt(p.softPct)}</td><td>${pctTxt(p.valgusPct)}</td></tr>`).join("")}
+    </table>
+    <p class="note">Altura estimada por el tiempo de vuelo. Suave = sin rodilla hacia dentro, con flexión al aterrizar (bajada de cadera ≥ 8 % de la pierna) y estable durante 1 s. Valores orientativos.</p>`;
+  },
+  histMain: (m) => `${m.jumps} saltos · ${m.h != null ? m.h.toFixed(1) : "–"} cm`,
+  histDetail: (m) => `Suaves ${pctTxt(m.softPct)} · rodilla dentro ${pctTxt(m.valgusPct)}`,
+};
+
+// ======================================================================
+// JUEGO 5: ESQUIVA
+// ======================================================================
+const esquiva = {
+  name: "Esquiva",
+  durationLabel: "Duración serie (s)",
+  mirrorView: true,
+  presets: {
+    inicial:    { duration: 30, sets: 3, rest: 45, xTypes: "side", xSpeed: "2.2", xGapMin: 1.5, xGapMax: 2.5 },
+    intermedia: { duration: 40, sets: 3, rest: 45, xTypes: "mix", xSpeed: "1.6", xGapMin: 1.0, xGapMax: 2.0 },
+    avanzada:   { duration: 40, sets: 4, rest: 40, xTypes: "mix", xSpeed: "1.2", xGapMin: 0.6, xGapMax: 1.4 },
+    vuelta:     { duration: 45, sets: 4, rest: 40, xTypes: "mix", xSpeed: "0.9", xGapMin: 0.4, xGapMax: 1.0 },
+  },
+  presetNames: { inicial: "Inicial: solo laterales, lento", intermedia: "Intermedia: mixto", avanzada: "Avanzada: mixto rápido", vuelta: "Vuelta al juego: muy rápido" },
+  readCfg: (f) => ({ types: f.get("xTypes"), speed: +f.get("xSpeed"), gapMin: +f.get("xGapMin"), gapMax: Math.max(+f.get("xGapMin"), +f.get("xGapMax")) }),
+  calibHint: "De pie, quieto y de frente a la cámara",
+  afterCalib(g) {
+    g.calibWarn = "";
+    const W = canvas.width, H = canvas.height, C = g.center;
+    g.xref = { noseY: C.noseY * H, hipY: C.hipY * H, shWpx: C.shW * W, head: Math.max(20, (C.hipY - C.noseY) * H) };
+  },
+  startSet(g) { Object.assign(g, { phase: "gap", nextAt: now() + 1000, obj: null, streak: 0 }); },
+  spawn(g, t, pose) {
+    const c = g.cfg, R = g.xref, W = canvas.width;
+    const type = c.types === "mix" ? pick(["duck", "side", "side"]) : c.types;
+    const hipX = (pose[L.lHip].x + pose[L.rHip].x) / 2 * W;
+    const nose = pose[L.nose].y * canvas.height;
+    g.obj = { type, t0: t, T: c.speed * 1000, x: hipX, startHipX: hipX, startNose: nose, moveT: null };
+    beep(type === "duck" ? 500 : 760, 80);
+    g.phase = "incoming";
+  },
+  update(g, t, pose) {
+    const R = g.xref, W = canvas.width, H = canvas.height;
+    if (g.phase === "gap") {
+      if (t >= g.setEnd) return endSet();
+      // espera a que esté de pie antes del siguiente objeto
+      const upright = pose && (pose[L.nose].y * H - R.noseY) / R.head < 0.15;
+      if (!upright) say("", "Ponte de pie");
+      else say("");
+      if (pose && upright && t >= g.nextAt) esquiva.spawn(g, t, pose);
+    } else if (g.phase === "incoming" && pose) {
+      const o = g.obj, el = t - o.t0;
+      const hipX = (pose[L.lHip].x + pose[L.rHip].x) / 2 * W, nose = pose[L.nose].y * H;
+      const duckDepth = (nose - R.noseY) / R.head;
+      const sideMove = Math.abs(hipX - o.x) / R.shWpx;
+      if (o.moveT === null && ((o.type === "duck" && (nose - o.startNose) / R.head > 0.1) || (o.type === "side" && Math.abs(hipX - o.startHipX) / R.shWpx > 0.3))) {
+        o.moveT = el; o.dir = Math.sign(-(hipX - o.startHipX)); // +1 = hacia la derecha del atleta
+      }
+      if (el >= o.T) {
+        const ok = o.type === "duck" ? duckDepth > 0.3 : sideMove > 0.9;
+        g.trials.push({ set: g.set, type: o.type, outcome: ok ? "dodge" : "hit", rt: o.moveT, dir: o.type === "side" ? o.dir || 0 : 0 });
+        g.streak = ok ? g.streak + 1 : 0;
+        flash(ok ? "#38a16966" : "#e53e3e99", true); setTimeout(hideStim, 220);
+        beep(ok ? 1200 : 180, ok ? 80 : 300);
+        Object.assign(g, { phase: "gap", obj: null, nextAt: t + rand(g.cfg.gapMin, g.cfg.gapMax) * 1000 });
+      }
+    }
+    if (g.phase === "incoming" && t >= g.setEnd + 3000) { g.obj = null; return endSet(); }
+    esquiva.draw(g, t);
+    const st = g.trials.filter((x) => x.set === g.set);
+    hud.score.textContent = `✓ ${st.filter((x) => x.outcome === "dodge").length}  ✗ ${st.filter((x) => x.outcome === "hit").length}${g.streak > 2 ? `  🔥${g.streak}` : ""}`;
+  },
+  draw(g, t) {
+    const o = g.obj; if (!o) return;
+    const R = g.xref, W = canvas.width, p = Math.min(1, (t - o.t0) / o.T);
+    if (o.type === "duck") {
+      // barra a la altura de la cabeza que se acerca (se hace más gruesa y opaca)
+      const y = R.noseY, th = 8 + p * R.head * 0.35;
+      ctx.fillStyle = `rgba(229,62,62,${0.25 + 0.7 * p})`;
+      ctx.fillRect(0, y - th / 2, W, th);
+      text(W / 2, y - th / 2 - 30, "¡AGÁCHATE!", 36 + p * 20, "#feb2b2");
+    } else {
+      // bola que cae sobre la posición del atleta
+      const r = R.shWpx * (0.35 + 0.35 * p), y = 20 + (R.noseY - 20) * p;
+      ctx.fillStyle = `rgba(237,137,54,${0.5 + 0.5 * p})`; ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(o.x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "rgba(237,137,54,.5)"; ctx.setLineDash([10, 10]);
+      ctx.beginPath(); ctx.moveTo(o.x - 0.9 * R.shWpx, 0); ctx.lineTo(o.x - 0.9 * R.shWpx, canvas.height); ctx.moveTo(o.x + 0.9 * R.shWpx, 0); ctx.lineTo(o.x + 0.9 * R.shWpx, canvas.height); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  },
+  summarize(trials) {
+    const d = trials.filter((t) => t.outcome === "dodge");
+    const by = (f) => { const a = trials.filter(f); return { n: a.length, pct: pct(a.filter((t) => t.outcome === "dodge").length, a.length), rt: mean(a.filter((t) => t.outcome === "dodge" && t.rt != null).map((t) => t.rt)) }; };
+    const duck = by((t) => t.type === "duck"), side = by((t) => t.type === "side");
+    const sl = by((t) => t.type === "side" && t.dir < 0), sr = by((t) => t.type === "side" && t.dir > 0);
+    return {
+      total: trials.length, dodged: d.length, dodgePct: pct(d.length, trials.length), rt: mean(d.filter((t) => t.rt != null).map((t) => t.rt)),
+      duckN: duck.n, duckPct: duck.pct, duckRt: duck.rt, sideN: side.n, sidePct: side.pct, sideRt: side.rt,
+      toL: sl.n, toR: sr.n, rtL: sl.rt, rtR: sr.rt,
+    };
+  },
+  asym: (m, inj) => timeAsym(m.rtL, m.rtR, inj),
+  results(s) {
+    const m = s.summary, a = esquiva.asym(m, s.injured);
+    return `
+    <div class="stats">
+      ${stat(pctTxt(m.dodgePct), `Esquivados (${m.dodged}/${m.total})`)}
+      ${stat(ms(m.rt), "Reacción media")}
+      ${stat(a ? a.txt : "–", a ? a.label + " (reacción)" : "Asimetría")}
+    </div>
+    <table>
+      <tr><th>Tipo</th><th>Objetos</th><th>Esquivados</th><th>Reacción</th></tr>
+      ${m.duckN ? `<tr><td>Agacharse</td><td>${m.duckN}</td><td>${pctTxt(m.duckPct)}</td><td>${ms(m.duckRt)}</td></tr>` : ""}
+      ${m.sideN ? `<tr><td>Lateral</td><td>${m.sideN}</td><td>${pctTxt(m.sidePct)}</td><td>${ms(m.sideRt)}</td></tr>` : ""}
+    </table>
+    ${m.sideN ? `<h3>Esquivas laterales por dirección</h3><table>
+      <tr><th></th><th>Hacia la izquierda</th><th>Hacia la derecha</th></tr>
+      <tr><td>Veces</td><td>${m.toL}</td><td>${m.toR}</td></tr>
+      <tr><td>Reacción</td><td>${ms(m.rtL)}</td><td>${ms(m.rtR)}</td></tr>
+    </table><p class="note">Si siempre esquiva hacia el mismo lado, puede estar evitando cargar la pierna lesionada.</p>` : ""}
+    <h3>Por serie</h3>
+    <table>
+      <tr><th>Serie</th><th>Esquivados</th><th>Reacción</th></tr>
+      ${s.perSet.map((p) => `<tr><td>${p.set}</td><td>${pctTxt(p.dodgePct)}</td><td>${ms(p.rt)}</td></tr>`).join("")}
+    </table>`;
+  },
+  histMain: (m) => `${pctTxt(m.dodgePct)} esquivados · ${ms(m.rt)}`,
+  histDetail: (m) => `Hacia izq./der.: ${m.toL} / ${m.toR}`,
+};
+
+const GAMES = { lateral, dianas, equilibrio, saltos, esquiva };
 
 // ---------- Utilidades de resultados ----------
 function stat(big, label) { return `<div class="stat"><b>${big}</b><span>${label}</span></div>`; }
@@ -710,14 +1020,14 @@ function tick() {
       const ok = pose && full && (!def.calibCheck || def.calibCheck(g, pose));
       if (ok) {
         g.calibStart ??= t;
-        g.calibSamples.push({ x: g.hipX, y: g.hipY, w: g.shW, shY: (pose[L.lSh].y + pose[L.rSh].y) / 2, ankY: (pose[L.lAnk].y + pose[L.rAnk].y) / 2 });
+        g.calibSamples.push({ x: g.hipX, y: g.hipY, w: g.shW, shY: (pose[L.lSh].y + pose[L.rSh].y) / 2, ankY: (pose[L.lAnk].y + pose[L.rAnk].y) / 2, noseY: pose[L.nose].y });
         say("Quieto…", `Calibrando ${Math.max(Math.ceil((1500 - (t - g.calibStart)) / 1000), 0)}`);
         if (t - g.calibStart > 1500) {
           const xs = g.calibSamples, avg = (k) => mean(xs.map((s) => s[k]));
           const x = avg("x"), w = avg("w");
           const spread = Math.max(...xs.map((s) => Math.abs(s.x - x)));
           if (w < 0.03 || spread > 0.4 * w) { g.calibSamples = []; g.calibStart = null; say("Quieto, por favor", "Vuelve a intentarlo"); break; }
-          g.center = { x, y: avg("y"), shW: w, shY: avg("shY"), hipY: avg("y"), ankY: avg("ankY") };
+          g.center = { x, y: avg("y"), shW: w, shY: avg("shY"), hipY: avg("y"), ankY: avg("ankY"), noseY: avg("noseY") };
           g.d = 0; g.off = null;
           def.afterCalib(g, pose);
           Object.assign(g, { phase: "countdown", countEnd: t + 3000, lastCount: null });

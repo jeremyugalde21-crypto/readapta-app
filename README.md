@@ -7,6 +7,8 @@ Juegos interactivos para readaptación deportiva. La cámara del móvil o tablet
 - **Reacción lateral**: tiempo de reacción y cambio de dirección a izquierda/derecha, con flechas, colores, flecha inversa y estímulos falsos.
 - **Dianas**: tocar dianas con manos o pies, a distintas alturas y alcances, simples o en secuencia 1-2-3.
 - **Equilibrio**: mantener el centro de la cadera en una zona en bipodal, monopodal (alternando pierna) o sentadilla, con aviso de apoyo del pie libre, rodilla hacia dentro y doble tarea opcional.
+- **Aterrizaje suave**: saltos bipodales o monopodales (a la señal o continuos): altura por tiempo de vuelo, calidad del aterrizaje (rodilla hacia dentro, amortiguación, estabilidad), tiempo de contacto, RSI y LSI entre piernas.
+- **Esquiva**: agacharse ante barras y desplazarse ante bolas; % esquivados, reacción y dirección preferida.
 
 ## Uso
 
