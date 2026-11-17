@@ -65,3 +65,19 @@ h3 { margin: 18px 0 8px; font-size: 17px; }
 #stim.band { opacity: .45; }
 .play.mirror-view #stage video { opacity: .9; }
 .overflow { overflow-x: auto; }
+.card.eval { background: #1a365d; border-color: #2c5282; }
+.filebtn { background: var(--blue); color: #fff !important; font-weight: 600; font-size: 17px !important; text-align: center; padding: 14px; border-radius: 12px; }
+.filebtn input { display: none; }
+.ev-stage { position: relative; width: 100%; background: #000; border-radius: 12px; overflow: hidden; }
+.ev-stage video { width: 100%; display: block; max-height: 55vh; object-fit: contain; }
+.ev-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ev-info { display: flex; justify-content: space-between; color: var(--muted); font-size: 14px; margin: 8px 0; }
+#ev-slider { width: 100%; }
+.ev-step { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
+.ev-step button { font: inherit; font-size: 18px; font-weight: 700; padding: 14px 0; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+.ev-marks { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.mark { font: inherit; font-size: 15px; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid #2c5282; background: #102a43; color: var(--text); display: flex; justify-content: space-between; gap: 10px; }
+.mark b { color: var(--yellow); }
+#ev-auto { width: 100%; margin-bottom: 12px; }
+#ev-result { margin-top: 6px; }
+[hidden] { display: none !important; }

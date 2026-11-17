@@ -10,6 +10,10 @@ Juegos interactivos para readaptación deportiva. La cámara del móvil o tablet
 - **Aterrizaje suave**: saltos bipodales o monopodales (a la señal o continuos): altura por tiempo de vuelo, calidad del aterrizaje (rodilla hacia dentro, amortiguación, estabilidad), tiempo de contacto, RSI y LSI entre piernas.
 - **Esquiva**: agacharse ante barras y desplazarse ante bolas; % esquivados, reacción y dirección preferida.
 
+## Evaluación de salto
+
+CMJ, SJ, CMJ a una pierna y drop jump a partir de un vídeo a cámara lenta (240 fps recomendado). La app propone el despegue y el aterrizaje con detección de pose y el evaluador los ajusta fotograma a fotograma. Altura por tiempo de vuelo (g·t²/8), RSI y LSI entre piernas. Pendiente de validación frente a plataformas de fuerza.
+
 ## Uso
 
 1. Abre la app en Safari (iPhone) o Chrome (Android) y añádela a la pantalla de inicio.

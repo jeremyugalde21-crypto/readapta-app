@@ -46,6 +46,10 @@
       <strong>Esquiva</strong>
       <span>Agacharse y desplazarse para esquivar objetos. Reacción y agilidad.</span>
     </button>
+    <button class="card eval" data-go="s-eval">
+      <strong>Evaluación de salto</strong>
+      <span>CMJ, SJ, CMJ a una pierna y drop jump con vídeo a cámara lenta. Altura, RSI y LSI.</span>
+    </button>
     <button class="card secondary" data-go="s-history">
       <strong>Historial</strong>
       <span>Resultados guardados por jugador</span>
@@ -225,12 +229,65 @@
   </div>
 </section>
 
+<!-- EVALUACIÓN DE SALTO -->
+<section id="s-eval" class="screen" hidden>
+  <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Evaluación de salto</h2></header>
+  <form id="ev-form" class="form">
+    <label>Jugador<input name="player" list="players" placeholder="Nombre" required autocomplete="off"></label>
+    <label>Lado lesionado
+      <select name="injured"><option value="">Ninguno / no aplica</option><option value="izq">Izquierdo</option><option value="der">Derecho</option></select>
+    </label>
+    <div class="row">
+      <label>Test
+        <select name="test">
+          <option value="cmj">CMJ (contramovimiento)</option>
+          <option value="sj">SJ (sin contramovimiento)</option>
+          <option value="cmj1">CMJ a una pierna</option>
+          <option value="dj">Drop jump</option>
+        </select>
+      </label>
+      <label data-ev="cmj1">Pierna<select name="side"><option value="izq">Izquierda</option><option value="der">Derecha</option></select></label>
+      <label data-ev="dj">Altura del cajón (cm)<input type="number" name="box" min="10" max="80" value="30"></label>
+    </div>
+    <label>Grabado a
+      <select name="fps"><option value="240">240 fps (cámara lenta del iPhone, recomendado)</option><option value="120">120 fps</option><option value="60">60 fps</option></select>
+    </label>
+    <label class="filebtn">Elegir vídeo del salto<input type="file" name="video" accept="video/*" required></label>
+    <p class="hint">Graba con la cámara lenta del iPhone, móvil en trípode a 1,5–2 m y bajo (20–30 cm del suelo), enfocando los pies. Un salto por vídeo.</p>
+  </form>
+
+  <div id="ev-work" hidden>
+    <div class="ev-stage">
+      <video id="ev-video" playsinline muted preload="auto"></video>
+      <canvas id="ev-canvas"></canvas>
+    </div>
+    <div class="ev-info"><span id="ev-frame">Fotograma –</span><span id="ev-status"></span></div>
+    <input type="range" id="ev-slider" min="0" max="0" value="0" step="1">
+    <div class="ev-step">
+      <button data-step="-10">−10</button><button data-step="-1">−1</button>
+      <button data-step="1">+1</button><button data-step="10">+10</button>
+    </div>
+    <div class="ev-marks">
+      <button id="ev-m-contact" data-mark="contact" class="mark" hidden>Contacto (cae del cajón)<b>–</b></button>
+      <button id="ev-m-takeoff" data-mark="takeoff" class="mark">Despegue (primer fotograma en el aire)<b>–</b></button>
+      <button id="ev-m-landing" data-mark="landing" class="mark">Aterrizaje (primer fotograma en el suelo)<b>–</b></button>
+    </div>
+    <button id="ev-auto" class="secondary-btn">Detectar automáticamente</button>
+    <div id="ev-result" class="stats"></div>
+    <div class="actions">
+      <button id="ev-save" class="primary" disabled>Guardar salto</button>
+      <button id="ev-new" class="secondary-btn">Otro vídeo</button>
+    </div>
+    <div id="ev-today"></div>
+  </div>
+</section>
+
 <!-- HISTORIAL -->
 <section id="s-history" class="screen" hidden>
   <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Historial</h2></header>
   <div class="row form">
     <label>Jugador<select id="hist-player"></select></label>
-    <label>Juego<select id="hist-game"><option value="">Todos</option><option value="lateral">Reacción lateral</option><option value="dianas">Dianas</option><option value="equilibrio">Equilibrio</option><option value="saltos">Aterrizaje suave</option><option value="esquiva">Esquiva</option></select></label>
+    <label>Juego<select id="hist-game"><option value="">Todos</option><option value="lateral">Reacción lateral</option><option value="dianas">Dianas</option><option value="equilibrio">Equilibrio</option><option value="saltos">Aterrizaje suave</option><option value="esquiva">Esquiva</option><option value="eval">Evaluación de salto</option></select></label>
   </div>
   <div id="history"></div>
   <div class="actions">

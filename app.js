@@ -22,7 +22,7 @@ const vis = (p) => p && (p.visibility ?? 1) > 0.5 && p.x > 0.01 && p.x < 0.99 &&
 // ---------- Navegación ----------
 function show(id) {
   document.querySelectorAll(".screen").forEach((s) => (s.hidden = s.id !== id));
-  if (id === "s-config") fillPlayers();
+  if (id === "s-config" || id === "s-eval") fillPlayers();
   if (id === "s-history") renderHistory();
   window.scrollTo(0, 0);
 }
@@ -1116,6 +1116,260 @@ $("btn-csv").onclick = () => {
   const aEl = Object.assign(document.createElement("a"), { href: url, download: `readapta-${new Date().toISOString().slice(0, 10)}.csv` });
   document.body.appendChild(aEl); aEl.click(); aEl.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
 };
+
+
+// ======================================================================
+// EVALUACIÓN DE SALTO (vídeo a cámara lenta, estilo My Jump)
+// ======================================================================
+const TESTS = { cmj: "CMJ", sj: "SJ", cmj1: "CMJ una pierna", dj: "Drop jump" };
+const evalJump = {
+  name: "Evaluación de salto",
+  asym: () => null,
+  histMain: (m) => `${TESTS[m.test]}${m.test === "cmj1" ? ` (${m.side})` : ""}: ${m.h.toFixed(1)} cm`,
+  histDetail: (m) => `Vuelo ${Math.round(m.flight)} ms${m.rsi != null ? ` · RSI ${m.rsi.toFixed(2)} · contacto ${Math.round(m.contact)} ms` : ""}`,
+};
+GAMES.eval = evalJump;
+
+const ev = {
+  form: $("ev-form"), work: $("ev-work"), video: $("ev-video"), canvas: $("ev-canvas"),
+  slider: $("ev-slider"), frameEl: $("ev-frame"), statusEl: $("ev-status"),
+  fileFps: 30, n: 0, i: 0, marks: {}, url: null, ts: 0, floor: null,
+};
+const evCfg = () => {
+  const f = new FormData(ev.form);
+  return { player: (f.get("player") || "").trim(), injured: f.get("injured"), test: f.get("test"), side: f.get("side"), box: +f.get("box"), fps: +f.get("fps") };
+};
+function evToggleFields() {
+  const t = ev.form.test.value;
+  ev.form.querySelectorAll("[data-ev]").forEach((el) => (el.hidden = el.dataset.ev !== t));
+  $("ev-m-contact").hidden = t !== "dj";
+  evRender();
+}
+ev.form.test.addEventListener("change", evToggleFields);
+ev.form.addEventListener("change", (e) => { if (e.target.name !== "video") evRender(); });
+evToggleFields();
+
+ev.form.video.addEventListener("change", async () => {
+  const file = ev.form.video.files[0];
+  if (!file) return;
+  if (!ev.form.player.value.trim()) { alert("Escribe primero el nombre del jugador."); ev.form.video.value = ""; return; }
+  if (ev.url) URL.revokeObjectURL(ev.url);
+  ev.url = URL.createObjectURL(file);
+  ev.marks = {}; ev.floor = null;
+  ev.work.hidden = false;
+  ev.statusEl.textContent = "Cargando vídeo…";
+  ev.video.src = ev.url;
+  await new Promise((r) => ev.video.addEventListener("loadedmetadata", r, { once: true }));
+  ev.fileFps = await evDetectFps();
+  ev.n = Math.max(1, Math.floor(ev.video.duration * ev.fileFps));
+  ev.slider.max = ev.n - 1;
+  const capt = evCfg().fps;
+  ev.statusEl.textContent = ev.fileFps < capt - 5
+    ? `Vídeo a ${Math.round(ev.fileFps)} fps: se toma cada fotograma como 1/${capt} s (cámara lenta)`
+    : `Vídeo a ${Math.round(ev.fileFps)} fps`;
+  await evSeek(0);
+  evRender();
+  ev.work.scrollIntoView({ behavior: "smooth" });
+});
+
+async function evDetectFps() {
+  const v = ev.video;
+  if (!("requestVideoFrameCallback" in HTMLVideoElement.prototype)) return 30;
+  const times = [];
+  await new Promise((resolve) => {
+    let done = false;
+    const cb = (_, meta) => {
+      times.push(meta.mediaTime);
+      if (times.length < 25 && !done) v.requestVideoFrameCallback(cb); else finish();
+    };
+    const finish = () => { if (done) return; done = true; v.pause(); resolve(); };
+    v.requestVideoFrameCallback(cb);
+    v.play().catch(finish);
+    setTimeout(finish, 2500);
+  });
+  v.pause(); v.currentTime = 0;
+  const d = [];
+  for (let k = 1; k < times.length; k++) { const x = times[k] - times[k - 1]; if (x > 0.0005) d.push(x); }
+  if (d.length < 3) return 30;
+  d.sort((a, b) => a - b);
+  const fps = 1 / d[Math.floor(d.length / 2)];
+  // redondea a un valor típico
+  return [24, 25, 30, 48, 50, 60, 120, 240].reduce((a, b) => (Math.abs(b - fps) < Math.abs(a - fps) ? b : a));
+}
+
+function evSeek(i) {
+  ev.i = Math.max(0, Math.min(ev.n - 1, i));
+  ev.slider.value = ev.i;
+  ev.frameEl.textContent = `Fotograma ${ev.i + 1} / ${ev.n}`;
+  return new Promise((resolve) => {
+    const t = (ev.i + 0.5) / ev.fileFps;
+    if (Math.abs(ev.video.currentTime - t) < 1e-4) return resolve();
+    ev.video.addEventListener("seeked", () => resolve(), { once: true });
+    ev.video.currentTime = t;
+  }).then(evDraw);
+}
+ev.slider.addEventListener("input", () => evSeek(+ev.slider.value));
+document.querySelector(".ev-step").addEventListener("click", (e) => { const b = e.target.closest("[data-step]"); if (b) evSeek(ev.i + +b.dataset.step); });
+document.querySelector(".ev-marks").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mark]"); if (!b) return;
+  ev.marks[b.dataset.mark] = ev.i; evRender(); evDraw();
+});
+// jump to a mark by long-press-free method: double click on the mark's value
+document.querySelector(".ev-marks").addEventListener("dblclick", (e) => {
+  const b = e.target.closest("[data-mark]"); if (b && ev.marks[b.dataset.mark] != null) evSeek(ev.marks[b.dataset.mark]);
+});
+
+function evCompute() {
+  const c = evCfg(), m = ev.marks, dt = 1 / c.fps;
+  if (m.takeoff == null || m.landing == null || m.landing <= m.takeoff) return null;
+  const flight = (m.landing - m.takeoff) * dt;
+  const h = (9.81 * flight * flight) / 8 * 100;
+  const r = { test: c.test, side: c.test === "cmj1" ? c.side : null, flight: flight * 1000, h, frames: m.landing - m.takeoff, fpsCapture: c.fps, fileFps: ev.fileFps };
+  if (c.test === "dj") {
+    if (m.contact == null || m.contact >= m.takeoff) return null;
+    r.contact = (m.takeoff - m.contact) * dt * 1000;
+    r.rsi = (h / 100) / (r.contact / 1000);
+    r.box = c.box;
+  }
+  return r;
+}
+function evRender() {
+  const set = (id, k) => { const b = $(id); if (b) b.querySelector("b").textContent = ev.marks[k] != null ? `#${ev.marks[k] + 1}` : "–"; };
+  set("ev-m-contact", "contact"); set("ev-m-takeoff", "takeoff"); set("ev-m-landing", "landing");
+  const r = evCompute();
+  $("ev-save").disabled = !r;
+  $("ev-result").innerHTML = r ? `
+    ${stat(`${r.h.toFixed(1)} cm`, "Altura (tiempo de vuelo)")}
+    ${stat(`${Math.round(r.flight)} ms`, `Tiempo de vuelo · ${r.frames} fotogramas`)}
+    ${r.rsi != null ? stat(r.rsi.toFixed(2), `RSI · contacto ${Math.round(r.contact)} ms`) : ""}` :
+    `<p class="hint">Marca ${evCfg().test === "dj" ? "contacto, despegue y aterrizaje" : "despegue y aterrizaje"} con los botones, o pulsa "Detectar automáticamente" y ajusta.</p>`;
+}
+function evDraw() {
+  const cv = ev.canvas, v = ev.video;
+  if (!v.videoWidth) return;
+  cv.width = v.videoWidth; cv.height = v.videoHeight;
+  const c2 = cv.getContext("2d"); c2.clearRect(0, 0, cv.width, cv.height);
+  if (ev.floor != null) {
+    c2.strokeStyle = "#f6ad55"; c2.lineWidth = 3; c2.setLineDash([12, 10]);
+    c2.beginPath(); c2.moveTo(0, ev.floor * cv.height); c2.lineTo(cv.width, ev.floor * cv.height); c2.stroke();
+  }
+  const mk = Object.entries(ev.marks).find(([, f]) => f === ev.i);
+  if (mk) {
+    c2.fillStyle = "#ecc94b"; c2.font = `700 ${Math.round(cv.height / 14)}px sans-serif`;
+    c2.fillText({ contact: "CONTACTO", takeoff: "DESPEGUE", landing: "ATERRIZAJE" }[mk[0]], 20, cv.height / 10);
+  }
+}
+
+// --- detección automática con pose ---
+async function evFootY(c) {
+  await evSeek(ev.i);
+  ev.ts = Math.max(ev.ts + 1, performance.now());
+  const res = landmarker.detectForVideo(ev.video, ev.ts);
+  const p = res.landmarks?.[0];
+  if (!p) return null;
+  const pts = c.test === "cmj1" ? (c.side === "izq" ? [27, 29, 31] : [28, 30, 32]) : [27, 28, 29, 30, 31, 32];
+  return { y: Math.max(...pts.map((k) => p[k].y)), leg: Math.abs((p[27].y + p[28].y) / 2 - (p[23].y + p[24].y) / 2) };
+}
+$("ev-auto").onclick = async () => {
+  const btn = $("ev-auto"), c = evCfg();
+  btn.disabled = true;
+  try {
+    ev.statusEl.textContent = "Cargando detección…";
+    await loadModel();
+    const step = Math.max(1, Math.ceil(ev.n / 300));
+    const ys = new Map(), legs = [];
+    const at = async (i) => {
+      if (ys.has(i)) return ys.get(i);
+      ev.i = i; const r = await evFootY(c);
+      ys.set(i, r ? r.y : null); if (r) legs.push(r.leg);
+      return ys.get(i);
+    };
+    for (let i = 0; i < ev.n; i += step) {
+      await at(i);
+      if ((i / step) % 10 === 0) ev.statusEl.textContent = `Analizando… ${Math.round((100 * i) / ev.n)} %`;
+    }
+    const vals = [...ys.values()].filter((v) => v != null).sort((a, b) => a - b);
+    if (vals.length < 10) throw new Error("No se detecta bien al atleta en el vídeo.");
+    const floor = vals[Math.floor(vals.length * 0.85)];
+    const leg = legs.sort((a, b) => a - b)[Math.floor(legs.length / 2)] || 0.3;
+    const thr = 0.04 * leg;
+    ev.floor = floor;
+    const air = async (i) => { const y = await at(i); return y != null && y < floor - thr; };
+    // secuencia muestreada
+    const idx = [...ys.keys()].sort((a, b) => a - b);
+    const states = [];
+    for (const i of idx) states.push({ i, a: await air(i) });
+    // refina una transición entre dos muestras: devuelve el primer fotograma con estado 'target'
+    const refine = async (lo, hi, target) => { for (let i = lo + 1; i <= hi; i++) if ((await air(i)) === target) return i; return hi; };
+    let takeoff = null, landing = null, contact = null;
+    if (c.test === "dj") {
+      // en el cajón (aire) -> suelo (contacto) -> aire (salto) -> suelo (aterrizaje)
+      let k = states.findIndex((s) => s.a);
+      let kc = states.findIndex((s, j) => j > k && !s.a);
+      let kt = states.findIndex((s, j) => j > kc && s.a);
+      let kl = states.findIndex((s, j) => j > kt && !s.a);
+      if (k < 0 || kc < 0 || kt < 0 || kl < 0) throw new Error("No encuentro caída, contacto y salto. Márcalos a mano.");
+      contact = await refine(states[kc - 1].i, states[kc].i, false);
+      takeoff = await refine(states[kt - 1].i, states[kt].i, true);
+      landing = await refine(states[kl - 1].i, states[kl].i, false);
+    } else {
+      // el tramo en el aire más largo, con suelo antes y después
+      let best = null;
+      for (let j = 1; j < states.length; j++) {
+        if (states[j].a && !states[j - 1].a) {
+          let e = j; while (e < states.length && states[e].a) e++;
+          if (e < states.length && (!best || e - j > best.e - best.s)) best = { s: j, e };
+        }
+      }
+      if (!best) throw new Error("No encuentro el salto. Márcalo a mano.");
+      takeoff = await refine(states[best.s - 1].i, states[best.s].i, true);
+      landing = await refine(states[best.e - 1].i, states[best.e].i, false);
+    }
+    ev.marks = { takeoff, landing, ...(contact != null ? { contact } : {}) };
+    await evSeek(takeoff);
+    evRender();
+    ev.statusEl.textContent = "Propuesta automática: revisa cada marca fotograma a fotograma";
+  } catch (e) {
+    ev.statusEl.textContent = e.message || String(e);
+  } finally { btn.disabled = false; }
+};
+
+$("ev-save").onclick = () => {
+  const r = evCompute(), c = evCfg(); if (!r) return;
+  const session = { id: Date.now(), date: new Date().toISOString(), game: "eval", player: c.player, injured: c.injured,
+    cfg: { ...c, preset: "" }, aborted: false, summary: r, perSet: [], trials: [r] };
+  const all = loadSessions(); all.push(session); saveSessions(all);
+  $("ev-save").disabled = true;
+  ev.statusEl.textContent = "Guardado ✓";
+  evRenderToday();
+};
+$("ev-new").onclick = () => { ev.form.video.value = ""; ev.work.hidden = true; ev.marks = {}; window.scrollTo(0, 0); };
+
+function evRenderToday() {
+  const c = evCfg(), today = new Date().toDateString();
+  const rows = loadSessions().filter((s) => s.game === "eval" && s.player === c.player && new Date(s.date).toDateString() === today);
+  if (!rows.length) { $("ev-today").innerHTML = ""; return; }
+  const groups = {};
+  for (const s of rows) { const k = s.summary.test + (s.summary.side ? "-" + s.summary.side : ""); (groups[k] ||= []).push(s.summary); }
+  const line = (k, a) => {
+    const hs = a.map((x) => x.h), mu = mean(hs), best = Math.max(...hs);
+    const rsi = a.filter((x) => x.rsi != null).map((x) => x.rsi);
+    const [t, side] = k.split("-");
+    return `<tr><td>${TESTS[t]}${side ? ` ${side}.` : ""}</td><td>${a.length}</td><td>${mu.toFixed(1)} cm</td><td>${best.toFixed(1)} cm</td><td>${rsi.length ? mean(rsi).toFixed(2) : "–"}</td></tr>`;
+  };
+  let lsi = "";
+  if (groups["cmj1-izq"] && groups["cmj1-der"]) {
+    const L_ = mean(groups["cmj1-izq"].map((x) => x.h)), R_ = mean(groups["cmj1-der"].map((x) => x.h));
+    const inj = c.injured;
+    const v = inj === "izq" ? (100 * L_) / R_ : inj === "der" ? (100 * R_) / L_ : (100 * Math.min(L_, R_)) / Math.max(L_, R_);
+    lsi = `<p class="note"><b>LSI ${inj ? `(lesionada / sana)` : "(menor / mayor)"}: ${Math.round(v)} %</b>${v < 90 ? " · por debajo del 90 % habitual para la vuelta al juego" : ""}</p>`;
+  }
+  $("ev-today").innerHTML = `<h3>Hoy · ${esc(c.player)}</h3><table>
+    <tr><th>Test</th><th>Saltos</th><th>Media</th><th>Mejor</th><th>RSI</th></tr>
+    ${Object.entries(groups).map(([k, a]) => line(k, a)).join("")}</table>${lsi}
+    <p class="note">Recomendado: 3 saltos válidos por test y quedarse con la media.</p>`;
+}
+ev.form.player.addEventListener("change", evRenderToday);
 
 // Acceso para pruebas automáticas
 window.__readapta = { get game() { return game; }, GAMES };
