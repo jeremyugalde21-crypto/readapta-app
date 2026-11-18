@@ -150,3 +150,8 @@ th { color: var(--lime); }
 .brand { background: none; -webkit-background-clip: initial; background-clip: initial; color: #fff; font-size: 40px; }
 .brand span { color: #22d3ee; }
 .logo { width: 72px; height: 72px; border-radius: 20px; box-shadow: 0 8px 26px rgba(34,211,238,.35); }
+
+/* Firma */
+.brand{margin-bottom:0}
+.firma{margin:2px 0 6px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3d9}
+.firma-pie{margin:26px 0 8px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);text-align:center;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3d9}
