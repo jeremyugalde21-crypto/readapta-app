@@ -146,3 +146,7 @@ th { color: var(--lime); }
 .pill { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .ok { background: rgba(16,185,129,.85); }
 .ghost { border-radius: 14px; }
+/* Título y logo v3 */
+.brand { background: none; -webkit-background-clip: initial; background-clip: initial; color: #fff; font-size: 40px; }
+.brand span { color: #22d3ee; }
+.logo { width: 72px; height: 72px; border-radius: 20px; box-shadow: 0 8px 26px rgba(34,211,238,.35); }
