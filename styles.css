@@ -93,3 +93,56 @@ h3 { margin: 18px 0 8px; font-size: 17px; }
 .cone small, .athlete small { font-weight: 400; color: var(--muted); }
 .athlete { text-align: center; font-weight: 700; font-size: 14px; }
 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+/* ============ Tema ReadAPP v2: más llamativo ============ */
+:root { --bg: #0b0820; --panel: rgba(255,255,255,.06); --line: rgba(255,255,255,.12); --text: #f5f3ff; --muted: #b9b3d9;
+  --blue: #7c3aed; --lime: #c6ff3d; --pink: #ff3d8b; --teal: #c6ff3d;
+  --grad: linear-gradient(135deg, #7c3aed 0%, #ff3d8b 100%); }
+html, body { background: var(--bg); }
+body { background:
+  radial-gradient(900px 500px at 110% -10%, rgba(255,61,139,.28), transparent 60%),
+  radial-gradient(800px 500px at -20% 10%, rgba(124,58,237,.35), transparent 60%),
+  radial-gradient(700px 400px at 50% 120%, rgba(0,198,255,.18), transparent 60%), var(--bg);
+  background-attachment: fixed; font-family: "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+h1, h2, h3 { letter-spacing: -.02em; }
+.top { align-items: flex-start; margin: 6px 0 22px; }
+.logo { width: 64px; height: 64px; border-radius: 18px; box-shadow: 0 8px 24px rgba(124,58,237,.5); }
+.brand { font-size: 38px; font-weight: 900; background: linear-gradient(90deg, #c6ff3d, #00e0ff 45%, #ff3d8b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.chips span { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+.cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.card { position: relative; overflow: hidden; border: 0; border-radius: 22px; padding: 16px; min-height: 150px; color: #fff;
+  box-shadow: 0 10px 28px rgba(0,0,0,.35); transition: transform .12s; background: var(--grad); }
+.card:active { transform: scale(.97); }
+.card::after { content: ""; position: absolute; right: -30px; top: -30px; width: 110px; height: 110px; border-radius: 50%; background: rgba(255,255,255,.14); }
+.card .ic { font-size: 34px; line-height: 1; margin-bottom: 6px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.25)); }
+.card strong { font-size: 19px; font-weight: 800; }
+.card span:not(.ic) { color: rgba(255,255,255,.88); font-size: 13px; line-height: 1.35; }
+.card[data-game="lateral"]    { background: linear-gradient(135deg, #ff7a18, #ff3d77); }
+.card[data-game="dianas"]     { background: linear-gradient(135deg, #00c6ff, #0062ff); }
+.card[data-game="equilibrio"] { background: linear-gradient(135deg, #10b981, #0891b2); }
+.card[data-game="saltos"]     { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
+.card[data-game="esquiva"]    { background: linear-gradient(135deg, #f43f5e, #f59e0b); }
+.card[data-game="conos"]      { background: linear-gradient(135deg, #2b6cb0 0%, #2f855a 35%, #d69e2e 70%, #c53030 100%); }
+.card.eval { background: linear-gradient(135deg, #c6ff3d, #14b8a6); color: #0b0820; grid-column: 1 / -1; min-height: 0; }
+.card.eval span:not(.ic) { color: #10302a; }
+.card.secondary { background: rgba(255,255,255,.07); border: 1px solid var(--line); grid-column: 1 / -1; min-height: 0; box-shadow: none; }
+.hint { color: var(--muted); }
+.bar h2 { font-size: 24px; font-weight: 800; }
+.back { color: var(--lime); font-weight: 700; }
+input, select { background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 14px; }
+input:focus, select:focus { outline: 2px solid var(--lime); outline-offset: 1px; }
+select option { background: #1a1440; }
+label.check input { accent-color: #c6ff3d; }
+button.primary { background: var(--grad); border-radius: 16px; font-weight: 800; font-size: 18px; padding: 16px 18px; box-shadow: 0 10px 24px rgba(255,61,139,.35); }
+.secondary-btn { background: rgba(255,255,255,.1); border: 1px solid var(--line); border-radius: 16px; font-weight: 700; }
+.filebtn { background: var(--grad); border-radius: 16px; box-shadow: 0 10px 24px rgba(124,58,237,.35); }
+.stat { background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 18px; position: relative; overflow: hidden; }
+.stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(#c6ff3d, #00e0ff); }
+.stat b { font-size: 28px; font-weight: 900; color: var(--lime); }
+th { color: var(--lime); }
+.cone-map, .mark, .ev-step button { background: rgba(255,255,255,.06); border-color: var(--line); }
+.mark b { color: var(--lime); }
+.pill { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.ok { background: rgba(16,185,129,.85); }
+.ghost { border-radius: 14px; }
