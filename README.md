@@ -9,6 +9,7 @@ Juegos interactivos para readaptación deportiva. La cámara del móvil o tablet
 - **Equilibrio**: mantener el centro de la cadera en una zona en bipodal, monopodal (alternando pierna) o sentadilla, con aviso de apoyo del pie libre, rodilla hacia dentro y doble tarea opcional.
 - **Aterrizaje suave**: saltos bipodales o monopodales (a la señal o continuos): altura por tiempo de vuelo, calidad del aterrizaje (rodilla hacia dentro, amortiguación, estabilidad), tiempo de contacto, RSI y LSI entre piernas.
 - **Esquiva**: agacharse ante barras y desplazarse ante bolas; % esquivados, reacción y dirección preferida.
+- **Conos de colores**: la pantalla en blanco cambia a azul, amarillo, verde o rojo y el atleta va al cono de ese color (en cruz: izquierda, derecha, adelante, atrás) y vuelve al centro. Mide reacción, dirección correcta e ida y vuelta. Modo solo pantalla sin cámara.
 
 ## Evaluación de salto
 

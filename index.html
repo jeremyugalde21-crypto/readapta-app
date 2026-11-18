@@ -46,6 +46,10 @@
       <strong>Esquiva</strong>
       <span>Agacharse y desplazarse para esquivar objetos. Reacción y agilidad.</span>
     </button>
+    <button class="card" data-game="conos">
+      <strong>Conos de colores</strong>
+      <span>Reacción multidireccional: la pantalla cambia de color y el atleta va al cono de ese color.</span>
+    </button>
     <button class="card eval" data-go="s-eval">
       <strong>Evaluación de salto</strong>
       <span>CMJ, SJ, CMJ a una pierna y drop jump con vídeo a cámara lenta. Altura, RSI y LSI.</span>
@@ -189,6 +193,29 @@
       </div>
     </fieldset>
 
+    <!-- Conos de colores -->
+    <fieldset data-game="conos">
+      <div class="cone-map">
+        <div class="cm-row"><span class="cone" style="--c:#2f855a">Verde<br><small>adelante</small></span></div>
+        <div class="cm-row"><span class="cone" style="--c:#2b6cb0">Azul<br><small>izquierda</small></span><span class="athlete">Atleta<br><small>mirando a la pantalla</small></span><span class="cone" style="--c:#ecc94b">Amarillo<br><small>derecha</small></span></div>
+        <div class="cm-row"><span class="cone" style="--c:#c53030">Rojo<br><small>atrás</small></span></div>
+        <p class="hint">Coloca los conos en cruz a 2–4 m del atleta. La pantalla (en el trípode) queda delante, detrás del cono verde.</p>
+      </div>
+      <label>Conos
+        <select name="cCones"><option value="4">4 conos (azul, amarillo, verde, rojo)</option><option value="2">2 conos laterales (azul y amarillo)</option></select>
+      </label>
+      <label>Modo
+        <select name="cMode"><option value="camera">Con cámara: mide reacción y dirección</option><option value="screen">Solo pantalla: cambia de color, sin medir</option></select>
+      </label>
+      <div class="row">
+        <label>Espera mín. (s)<input type="number" name="cWaitMin" min="0.3" max="10" step="0.1" value="1.5"></label>
+        <label>Espera máx. (s)<input type="number" name="cWaitMax" min="0.3" max="10" step="0.1" value="3.0"></label>
+        <label>Tiempo máx. para salir (s)<input type="number" name="cMaxResp" min="0.5" max="5" step="0.1" value="2.0"></label>
+      </div>
+      <label>Tiempo que se ve el color en modo solo pantalla (s)<input type="number" name="cShowTime" min="0.3" max="10" step="0.1" value="1.5"></label>
+      <label class="check"><input type="checkbox" name="cCheckDir" checked> Comprobar que va al cono correcto</label>
+    </fieldset>
+
     <div class="row">
       <label class="check"><input type="checkbox" name="sound" checked> Sonido</label>
       <label class="check"><input type="checkbox" name="skeleton"> Mostrar esqueleto</label>
@@ -287,7 +314,7 @@
   <header class="bar"><button class="back" data-go="s-home">‹ Inicio</button><h2>Historial</h2></header>
   <div class="row form">
     <label>Jugador<select id="hist-player"></select></label>
-    <label>Juego<select id="hist-game"><option value="">Todos</option><option value="lateral">Reacción lateral</option><option value="dianas">Dianas</option><option value="equilibrio">Equilibrio</option><option value="saltos">Aterrizaje suave</option><option value="esquiva">Esquiva</option><option value="eval">Evaluación de salto</option></select></label>
+    <label>Juego<select id="hist-game"><option value="">Todos</option><option value="lateral">Reacción lateral</option><option value="dianas">Dianas</option><option value="equilibrio">Equilibrio</option><option value="saltos">Aterrizaje suave</option><option value="esquiva">Esquiva</option><option value="conos">Conos de colores</option><option value="eval">Evaluación de salto</option></select></label>
   </div>
   <div id="history"></div>
   <div class="actions">

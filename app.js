@@ -882,7 +882,164 @@ const esquiva = {
   histDetail: (m) => `Hacia izq./der.: ${m.toL} / ${m.toR}`,
 };
 
-const GAMES = { lateral, dianas, equilibrio, saltos, esquiva };
+// ======================================================================
+// JUEGO 6: CONOS DE COLORES (reacción multidireccional)
+// ======================================================================
+// Disposición en cruz alrededor del atleta (mirando a la pantalla):
+// azul = izquierda, amarillo = derecha, verde = adelante (hacia la pantalla), rojo = atrás
+const CONES = {
+  azul:     { name: "Azul", color: "#2b6cb0", dir: "izq" },
+  amarillo: { name: "Amarillo", color: "#ecc94b", dir: "der" },
+  verde:    { name: "Verde", color: "#2f855a", dir: "adelante" },
+  rojo:     { name: "Rojo", color: "#c53030", dir: "atras" },
+};
+const DIR_NAME = { izq: "izquierda", der: "derecha", adelante: "adelante", atras: "atrás" };
+const conos = {
+  name: "Conos de colores",
+  durationLabel: "Duración serie (s)",
+  whiteBg: true,
+  presets: {
+    inicial:    { duration: 30, sets: 3, rest: 60, cCones: "2", cWaitMin: 2.0, cWaitMax: 3.5, cMaxResp: 2.5, cMode: "camera", cCheckDir: true },
+    intermedia: { duration: 40, sets: 4, rest: 60, cCones: "4", cWaitMin: 1.5, cWaitMax: 3.0, cMaxResp: 2.0, cMode: "camera", cCheckDir: true },
+    avanzada:   { duration: 40, sets: 5, rest: 50, cCones: "4", cWaitMin: 0.8, cWaitMax: 2.0, cMaxResp: 1.5, cMode: "camera", cCheckDir: true },
+    vuelta:     { duration: 45, sets: 5, rest: 45, cCones: "4", cWaitMin: 0.5, cWaitMax: 1.5, cMaxResp: 1.2, cMode: "camera", cCheckDir: true },
+  },
+  presetNames: { inicial: "Inicial: 2 conos laterales, lento", intermedia: "Intermedia: 4 conos", avanzada: "Avanzada: 4 conos, rápido", vuelta: "Vuelta al juego: 4 conos, muy rápido" },
+  readCfg: (f) => ({ cones: f.get("cCones"), waitMin: +f.get("cWaitMin"), waitMax: Math.max(+f.get("cWaitMin"), +f.get("cWaitMax")),
+    maxResp: +f.get("cMaxResp"), mode: f.get("cMode"), checkDir: !!f.get("cCheckDir"), showTime: +f.get("cShowTime") }),
+  noCamera: (cfg) => cfg.mode === "screen",
+  calibHint: "De pie en el centro de la cruz de conos, mirando a la pantalla",
+  afterCalib(g) { g.calibWarn = ""; },
+  colorsFor: (c) => (c.cones === "2" ? ["azul", "amarillo"] : ["azul", "amarillo", "verde", "rojo"]),
+  startSet(g) {
+    Object.assign(g, { phase: g.cfg.mode === "screen" ? "waiting" : "toCenter", centerSince: null, stimAt: now() + rand(g.cfg.waitMin, g.cfg.waitMax) * 1000, lastColor: null });
+  },
+  // desplazamiento respecto a la calibración: dx en anchos de hombro (+ = derecha del atleta), escala (>1 = más cerca de la pantalla)
+  offset(g) { return { dx: -(g.hipX - g.center.x) / g.center.shW, sc: g.shW / g.center.shW }; },
+  dirOf(o) {
+    const lat = Math.abs(o.dx) / 0.8, dep = Math.abs(o.sc - 1) / 0.18;
+    if (Math.max(lat, dep) < 1) return null;
+    return lat >= dep ? (o.dx > 0 ? "der" : "izq") : (o.sc > 1 ? "adelante" : "atras");
+  },
+  pickColor(g) {
+    const cols = conos.colorsFor(g.cfg).filter((k) => k !== g.lastColor || Math.random() < 0.25);
+    return pick(cols.length ? cols : conos.colorsFor(g.cfg));
+  },
+  show(color) { stim.className = "show full"; stim.style.background = CONES[color].color; stim.textContent = ""; },
+  update(g, t, pose) {
+    const c = g.cfg, cam = c.mode !== "screen";
+    let o = null;
+    if (cam && pose && g.center) { const r = conos.offset(g); g.o = g.o ? { dx: g.o.dx * 0.4 + r.dx * 0.6, sc: g.o.sc * 0.4 + r.sc * 0.6 } : r; o = g.o; }
+    const lost = cam && t - g.lastPoseT > 1000;
+    const inCenter = o && Math.abs(o.dx) < 0.5 && Math.abs(o.sc - 1) < 0.1;
+    switch (g.phase) {
+      case "toCenter":
+        if (t >= g.setEnd) return endSet();
+        if (lost) { say("No te veo", "Vuelve al centro"); g.centerSince = null; break; }
+        if (inCenter) {
+          g.centerSince ??= t; say("");
+          if (t - g.centerSince > 300) Object.assign(g, { phase: "waiting", stimAt: t + rand(c.waitMin, c.waitMax) * 1000 });
+        } else { g.centerSince = null; say("Vuelve al centro"); }
+        break;
+      case "waiting":
+        if (t >= g.setEnd) return endSet();
+        if (cam && o && !inCenter && (Math.abs(o.dx) > 0.6 || Math.abs(o.sc - 1) > 0.12)) {
+          g.trials.push({ set: g.set, outcome: "anticip" });
+          say("¡Espera el color!"); beep(220, 200);
+          Object.assign(g, { phase: "toCenter", centerSince: null }); break;
+        }
+        if (t >= g.stimAt) {
+          const color = conos.pickColor(g); g.lastColor = color;
+          conos.show(color); beep(980, 110);
+          Object.assign(g, { phase: "stim", t0: t, trial: { set: g.set, color, dir: CONES[color].dir }, moveT: null, firstDir: null, leftAt: null });
+        }
+        break;
+      case "stim": {
+        const el = t - g.t0, tr = g.trial;
+        if (!cam) {
+          if (el >= c.showTime * 1000) {
+            g.trials.push({ ...tr, outcome: "shown" }); hideStim();
+            Object.assign(g, { phase: "waiting", stimAt: t + rand(c.waitMin, c.waitMax) * 1000 });
+          }
+          break;
+        }
+        if (!o) break;
+        if (g.moveT === null && (Math.abs(o.dx) > 0.3 || Math.abs(o.sc - 1) > 0.07)) g.moveT = el;
+        const d = conos.dirOf(o);
+        if (d && !g.firstDir) {
+          g.firstDir = d; g.reachT = el;
+          if (c.checkDir && d !== tr.dir) {
+            g.trials.push({ ...tr, outcome: "error", rt: g.moveT, went: d });
+            stim.style.background = "#000"; beep(220, 250);
+            Object.assign(g, { phase: "toCenter", centerSince: null }); setTimeout(hideStim, 300); break;
+          }
+          hideStim(); // el color desaparece al salir: debe volver al centro
+        }
+        if (g.firstDir && inCenter) {
+          g.trials.push({ ...tr, outcome: "hit", rt: g.moveT ?? g.reachT, trip: el, went: g.firstDir });
+          beep(1200, 80);
+          Object.assign(g, { phase: "toCenter", centerSince: t }); break;
+        }
+        if (!g.firstDir && el >= c.maxResp * 1000) {
+          g.trials.push({ ...tr, outcome: "miss", rt: g.moveT });
+          hideStim(); beep(220, 200);
+          Object.assign(g, { phase: "toCenter", centerSince: null });
+        }
+        if (g.firstDir && el > 8000) { // no volvió al centro
+          g.trials.push({ ...tr, outcome: "hit", rt: g.moveT ?? g.reachT, trip: null, went: g.firstDir });
+          Object.assign(g, { phase: "toCenter", centerSince: null });
+        }
+        break;
+      }
+    }
+    const st = g.trials.filter((x) => x.set === g.set);
+    hud.score.textContent = cam ? `✓ ${st.filter((x) => x.outcome === "hit").length}  ✗ ${st.filter((x) => ["error", "miss", "anticip"].includes(x.outcome)).length}` : `Estímulos ${st.length}`;
+  },
+  summarize(trials) {
+    const real = trials.filter((t) => ["hit", "error", "miss"].includes(t.outcome)), hits = real.filter((t) => t.outcome === "hit");
+    const byDir = {};
+    for (const d of ["izq", "der", "adelante", "atras"]) {
+      const a = real.filter((t) => t.dir === d); if (!a.length) continue;
+      const h = a.filter((t) => t.outcome === "hit");
+      byDir[d] = { n: a.length, hitPct: pct(h.length, a.length), rt: mean(h.map((t) => t.rt).filter((v) => v != null)), trip: mean(h.map((t) => t.trip).filter((v) => v != null)) };
+    }
+    return {
+      total: real.length, hits: hits.length, errors: real.filter((t) => t.outcome === "error").length, misses: real.filter((t) => t.outcome === "miss").length,
+      hitPct: pct(hits.length, real.length), rt: mean(hits.map((t) => t.rt).filter((v) => v != null)),
+      trip: mean(hits.map((t) => t.trip).filter((v) => v != null)),
+      rtL: byDir.izq?.rt ?? null, rtR: byDir.der?.rt ?? null, byDir,
+      anticip: trials.filter((t) => t.outcome === "anticip").length, shown: trials.filter((t) => t.outcome === "shown").length,
+    };
+  },
+  asym: (m, inj) => timeAsym(m.rtL, m.rtR, inj),
+  results(s) {
+    const m = s.summary;
+    if (s.cfg.mode === "screen") return `<div class="stats">${stat(m.shown, "Estímulos mostrados")}</div><p class="note">Modo solo pantalla: sin medición. Usa el modo con cámara para medir la reacción.</p>`;
+    const a = conos.asym(m, s.injured);
+    const colorOf = Object.fromEntries(Object.entries(CONES).map(([k, v]) => [v.dir, k]));
+    return `
+    <div class="stats">
+      ${stat(ms(m.rt), "Tiempo de reacción medio")}
+      ${stat(pctTxt(m.hitPct), `Aciertos (${m.hits}/${m.total})`)}
+      ${stat(ms(m.trip), "Ida y vuelta al centro")}
+      ${stat(a ? a.txt : "–", a ? a.label + " (reacción)" : "Asimetría")}
+    </div>
+    <table>
+      <tr><th>Cono</th><th>Estímulos</th><th>Aciertos</th><th>Reacción</th><th>Ida y vuelta</th></tr>
+      ${Object.entries(m.byDir).map(([d, r]) => `<tr><td><span class="dot" style="background:${CONES[colorOf[d]].color}"></span>${CONES[colorOf[d]].name} (${DIR_NAME[d]})</td><td>${r.n}</td><td>${pctTxt(r.hitPct)}</td><td>${ms(r.rt)}</td><td>${ms(r.trip)}</td></tr>`).join("")}
+    </table>
+    <h3>Por serie</h3>
+    <table>
+      <tr><th>Serie</th><th>Reacción</th><th>Aciertos</th><th>Errores</th><th>Sin resp.</th></tr>
+      ${s.perSet.map((p) => `<tr><td>${p.set}</td><td>${ms(p.rt)}</td><td>${pctTxt(p.hitPct)}</td><td>${p.errors}</td><td>${p.misses}</td></tr>`).join("")}
+    </table>
+    <p class="note">Reacción = desde que cambia el color hasta que el atleta empieza a moverse. Errores de dirección: ${m.errors} · Sin respuesta: ${m.misses} · Salidas anticipadas: ${m.anticip}. Adelante y atrás se detectan peor que los laterales con una sola cámara.</p>`;
+  },
+  histMain: (m) => (m.shown && !m.total ? `${m.shown} estímulos (sin cámara)` : `Reacción ${ms(m.rt)} · ${pctTxt(m.hitPct)} aciertos`),
+  histDetail: (m) => `Reacción I/D: ${ms(m.rtL)} / ${ms(m.rtR)}`,
+};
+
+const GAMES = { lateral, dianas, equilibrio, saltos, esquiva, conos };
 
 // ---------- Utilidades de resultados ----------
 function stat(big, label) { return `<div class="stat"><b>${big}</b><span>${label}</span></div>`; }
@@ -943,6 +1100,7 @@ async function startGame(cfg) {
   const def = GAMES[cfg.game];
   show("s-play");
   $("s-play").classList.toggle("mirror-view", !!def.mirrorView);
+  $("s-play").classList.toggle("white-bg", !!def.whiteBg && !cfg.skeleton);
   hideStim(); say("Preparando…", "Cargando detección y cámara");
   setStatus("Cargando…"); hud.set.textContent = hud.time.textContent = hud.score.textContent = "";
   try {
@@ -950,6 +1108,13 @@ async function startGame(cfg) {
     if (audio.state === "suspended") await audio.resume();
   } catch {}
   game = { cfg, def, phase: "loading", trials: [], seqs: [], set: 1, center: null, lastPoseT: now() };
+  if (def.noCamera?.(cfg)) {
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+    setStatus("Sin cámara");
+    Object.assign(game, { phase: "countdown", countEnd: now() + 3000, lastCount: null, calibWarn: "" });
+    requestAnimationFrame(tick);
+    return;
+  }
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("Este navegador no permite usar la cámara. Ábrelo con https en Safari o Chrome.");
     await loadModel();
@@ -1012,7 +1177,7 @@ function tick() {
     g.hipY = (pose[L.lHip].y + pose[L.rHip].y) / 2;
     g.shW = Math.abs(pose[L.lSh].x - pose[L.rSh].x);
     setStatus(full ? "Cuerpo completo" : "No se ve el cuerpo entero", full ? "ok" : "warn");
-  } else setStatus("No se detecta a nadie", "bad");
+  } else if (def.noCamera?.(c)) setStatus("Sin cámara"); else setStatus("No se detecta a nadie", "bad");
 
   switch (g.phase) {
     case "calib": {
