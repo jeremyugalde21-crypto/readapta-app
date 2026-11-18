@@ -178,3 +178,8 @@ th { color: var(--lime); }
 .row.eval .tx span,.row.eval .go{color:#10302a}
 .tip{margin:22px 0 0;text-align:center;font-size:12px;color:#8f89b3}
 .firma-pie{margin-top:14px}
+
+/* Tarjetas centradas v5 */
+#s-home .card{align-items:center;justify-content:center;text-align:center;gap:4px;min-height:132px}
+#s-home .card .ic{font-size:40px;margin:0 0 6px}
+#s-home .card::after{right:-40px;top:-40px}
