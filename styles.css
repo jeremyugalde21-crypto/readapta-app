@@ -155,3 +155,26 @@ th { color: var(--lime); }
 .brand{margin-bottom:0}
 .firma{margin:2px 0 6px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3d9}
 .firma-pie{margin:26px 0 8px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);text-align:center;font-size:12px;font-weight:600;letter-spacing:.04em;color:#b9b3d9}
+
+/* Inicio simplificado v4 */
+#s-home .top{flex-direction:column;align-items:center;text-align:center;gap:10px;margin:14px 0 26px}
+#s-home .brand{font-size:40px;line-height:1}
+#s-home .firma{margin:6px 0 0}
+.sec{margin:0 0 10px 2px;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#b9b3d9}
+#s-home .cards{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
+#s-home .card{min-height:118px;padding:14px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
+#s-home .card .ic{font-size:28px;margin-bottom:auto}
+#s-home .card strong{font-size:17px;line-height:1.15}
+#s-home .card span:not(.ic){font-size:12px;font-weight:600;opacity:.9}
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:#fff;padding:14px 16px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.07);cursor:pointer}
+.row:active{transform:scale(.98)}
+.row .ic{font-size:26px}
+.row .tx{flex:1;display:flex;flex-direction:column;gap:2px}
+.row strong{font-size:16px}
+.row .tx span{font-size:12px;color:#b9b3d9}
+.row .go{font-size:26px;color:#b9b3d9;line-height:1}
+.row.eval{background:linear-gradient(135deg,#c6ff3d,#14b8a6);border:0;color:#0b0820}
+.row.eval .tx span,.row.eval .go{color:#10302a}
+.tip{margin:22px 0 0;text-align:center;font-size:12px;color:#8f89b3}
+.firma-pie{margin-top:14px}
