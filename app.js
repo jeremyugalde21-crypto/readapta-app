@@ -1,4 +1,4 @@
-// Readapta: juegos de readaptación con detección de pose por cámara.
+// ReadAPP: juegos de readaptación con detección de pose por cámara.
 // Juegos: Reacción lateral, Dianas, Equilibrio.
 import { PoseLandmarker, FilesetResolver, DrawingUtils }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
@@ -1113,7 +1113,7 @@ $("btn-csv").onclick = () => {
     return [s.date, s.player, GAMES[s.game].name, s.injured, s.perSet?.length || s.trials.length, s.cfg.preset, a?.v, ...keys.map((k) => s.summary[k])].map(r).join(","); });
   const blob = new Blob(["﻿" + [head.join(","), ...lines].join("\n")], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
-  const aEl = Object.assign(document.createElement("a"), { href: url, download: `readapta-${new Date().toISOString().slice(0, 10)}.csv` });
+  const aEl = Object.assign(document.createElement("a"), { href: url, download: `readapp-${new Date().toISOString().slice(0, 10)}.csv` });
   document.body.appendChild(aEl); aEl.click(); aEl.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
 };
 

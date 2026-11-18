@@ -1,4 +1,4 @@
-# Readapta
+# ReadAPP
 
 Juegos interactivos para readaptación deportiva. La cámara del móvil o tablet detecta el movimiento del atleta (MediaPipe Pose); el atleta no toca el dispositivo.
 
