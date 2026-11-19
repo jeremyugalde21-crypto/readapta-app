@@ -6,7 +6,7 @@ Juegos interactivos para readaptación deportiva. La cámara del móvil o tablet
 
 - **Reacción lateral**: tiempo de reacción y cambio de dirección a izquierda/derecha, con flechas, colores, flecha inversa y estímulos falsos.
 - **Dianas**: tocar dianas con manos o pies, a distintas alturas y alcances, simples o en secuencia 1-2-3.
-- **Equilibrio**: mantener el centro de la cadera en una zona en bipodal, monopodal (alternando pierna) o sentadilla, con aviso de apoyo del pie libre, rodilla hacia dentro y doble tarea opcional.
+- **Equilibrio**: mantener el centro de la cadera en una zona en bipodal, monopodal (alternando pierna) o sentadilla, con aviso de apoyo del pie libre, rodilla hacia dentro y doble tarea opcional. Modo dinámico: alcances con las manos (a los lados, arriba, abajo) y con el pie libre (hacia fuera y cruzado) sobre la pierna de apoyo, con 6 niveles que suben con 3 aciertos seguidos y bajan con 2 fallos.
 - **Aterrizaje suave**: saltos bipodales o monopodales (a la señal o continuos): altura por tiempo de vuelo, calidad del aterrizaje (rodilla hacia dentro, amortiguación, estabilidad), tiempo de contacto, RSI y LSI entre piernas.
 - **Esquiva**: agacharse ante barras y desplazarse ante bolas; % esquivados, reacción y dirección preferida.
 - **Conos de colores**: la pantalla en blanco cambia a azul, amarillo, verde o rojo y el atleta va al cono de ese color (en cruz: izquierda, derecha, adelante, atrás) y vuelve al centro. Mide reacción, dirección correcta e ida y vuelta. Modo solo pantalla sin cámara.

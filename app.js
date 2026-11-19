@@ -425,8 +425,9 @@ const equilibrio = {
     intermedia: { duration: 30, sets: 4, rest: 40, ePosture: "mono-alt", eZone: "0.35", eDual: "none" },
     avanzada:   { duration: 30, sets: 4, rest: 40, ePosture: "mono-alt", eZone: "0.22", eDual: "none" },
     vuelta:     { duration: 30, sets: 6, rest: 30, ePosture: "mono-alt", eZone: "0.22", eDual: "arms" },
+    dinamico:   { duration: 40, sets: 4, rest: 40, ePosture: "mono-alt", eZone: "0.22", eDual: "reach" },
   },
-  presetNames: { inicial: "Inicial: bipodal, zona amplia", intermedia: "Intermedia: monopodal alternando", avanzada: "Avanzada: monopodal, zona media", vuelta: "Vuelta al juego: monopodal con doble tarea" },
+  presetNames: { inicial: "Inicial: bipodal, zona amplia", intermedia: "Intermedia: monopodal alternando", avanzada: "Avanzada: monopodal, zona media", vuelta: "Vuelta al juego: monopodal con doble tarea", dinamico: "Dinámico: alcances sobre una pierna, dificultad progresiva" },
   readCfg: (f) => ({ posture: f.get("ePosture"), zone: +f.get("eZone"), dual: f.get("eDual") }),
   postureFor(g) {
     const p = g.cfg.posture;
@@ -449,11 +450,67 @@ const equilibrio = {
     if (post.stance) {
       const st = P(pose[post.stance > 0 ? L.rAnk : L.lAnk]), fr = P(pose[post.stance > 0 ? L.lAnk : L.rAnk]);
       g.ref.lift = st.y - fr.y;
+      g.ref.floorY = st.y; g.ref.stX = st.x;
     }
+    const C = g.center, H = canvas.height;
+    g.ref.shY = C.shY * H; g.ref.torso = (C.hipY - C.shY) * H;
+    g.ref.floorY = g.ref.floorY ?? C.ankY * H;
   },
   startSet(g) {
     Object.assign(g, { phase: "hold", acc: { tot: 0, inZone: 0, path: 0, dsum: 0, frames: 0, touches: 0, valgus: 0, dualN: 0, dualOk: 0 },
       touching: false, prevOff: null, lastT: now(), nextDual: now() + rand(3000, 5000), dual: null });
+    if (g.cfg.dual === "reach") {
+      g.lvl = g.lvl || 1; g.streak = 0; g.fails = 0;
+      Object.assign(g.acc, { rN: 0, rOk: 0, rT: 0, rMax: g.lvl, rHand: 0, rFoot: 0 });
+      g.reach = null; g.nextReach = now() + 1200;
+    }
+  },
+  // ---- alcances sobre la pierna de apoyo (dificultad progresiva por niveles 1-6) ----
+  spawnReach(g, t) {
+    const W = canvas.width, H = canvas.height, R = g.ref, sw = R.shWpx, lv = g.lvl, post = POSTURE[g.posture];
+    const leg = R.floorY - R.hip.y;
+    const kinds = ["hmid"];
+    if (lv >= 2) kinds.push("hhigh");
+    if (lv >= 3) kinds.push("hlow", "hlow");
+    if (post.stance && lv >= 4) kinds.push("flat", "flat");
+    if (post.stance && lv >= 5) kinds.push("fcross", "hlow");
+    const r = sw * Math.max(0.3, 0.48 - 0.03 * lv);
+    for (let tries = 0; tries < 30; tries++) {
+      const k = pick(kinds);
+      let side = pick([-1, 1]), u, y, part = "hand";
+      if (k === "hmid") { u = 1.0 + 0.18 * lv; y = R.shY + R.torso * rand(-0.1, 0.2); }
+      else if (k === "hhigh") { u = 0.5 + 0.15 * lv; y = R.shY - R.torso * rand(0.4, 0.6); }
+      else if (k === "hlow") { u = 0.5 + 0.12 * lv; y = R.hip.y + leg * Math.min(0.75, 0.3 + 0.07 * lv); }
+      else if (k === "flat") { part = "foot"; side = -post.stance; u = 0.9 + 0.2 * (lv - 3); y = R.floorY - leg * 0.14; }
+      else { part = "foot"; side = post.stance; u = 0.8 + 0.2 * (lv - 4); y = R.floorY - leg * 0.14; }
+      const x = R.hip.x - side * u * sw;
+      if (x > r && x < W - r && y > r && y < H - r) {
+        g.reach = { x, y, r, part, side, kind: k, t0: t, limit: Math.max(1800, 4200 - 400 * (lv - 1)) };
+        g.acc.rN++; beep(980, 80);
+        return;
+      }
+    }
+    g.nextReach = t + 500; // no cabe: reintenta
+  },
+  reachTouch(g, pose) {
+    const rc = g.reach, post = POSTURE[g.posture];
+    let pts;
+    if (rc.part === "hand") pts = [pose[L.lWr], pose[L.rWr]];
+    else { const f = -post.stance; pts = f > 0 ? [pose[L.rAnk], pose[L.rFoot]] : [pose[L.lAnk], pose[L.lFoot]]; }
+    return pts.some((p) => p && (p.visibility ?? 1) > 0.4 && dist(P(p), rc) < rc.r * 1.15);
+  },
+  reachResult(g, t, ok) {
+    const a = g.acc;
+    if (ok) {
+      a.rOk++; a.rT += t - g.reach.t0; if (g.reach.part === "hand") a.rHand++; else a.rFoot++;
+      beep(1200, 70); g.streak++; g.fails = 0;
+      if (g.streak >= 3 && g.lvl < 6) { g.lvl++; g.streak = 0; g.lvlMsgT = t; beep(1500, 120); }
+    } else {
+      beep(220, 150); g.fails++; g.streak = 0;
+      if (g.fails >= 2 && g.lvl > 1) { g.lvl--; g.fails = 0; }
+    }
+    a.rMax = Math.max(a.rMax, g.lvl);
+    g.reach = null; g.nextReach = t + rand(500, 900);
   },
   update(g, t, pose) {
     if (g.phase !== "hold") return;
@@ -478,6 +535,14 @@ const equilibrio = {
       // valgo de rodilla (orientativo, vista frontal)
       const legs = post.stance ? [post.stance] : [-1, 1];
       if (legs.some((s) => equilibrio.valgus(pose, s, g.ref.shWpx) > 0.2)) a.valgus += dt;
+      // alcances
+      if (g.cfg.dual === "reach") {
+        if (!g.reach && t >= g.nextReach) equilibrio.spawnReach(g, t);
+        else if (g.reach) {
+          if (equilibrio.reachTouch(g, pose)) equilibrio.reachResult(g, t, true);
+          else if (t - g.reach.t0 > g.reach.limit) equilibrio.reachResult(g, t, false);
+        }
+      }
       // doble tarea
       if (g.cfg.dual === "arms") {
         if (!g.dual && t >= g.nextDual) {
@@ -493,7 +558,7 @@ const equilibrio = {
     }
     equilibrio.draw(g);
     say("", "");
-    hud.score.textContent = a.tot ? `En zona ${Math.round((100 * a.inZone) / a.tot)} %` : "";
+    hud.score.textContent = g.cfg.dual === "reach" ? `Nivel ${g.lvl} · ${a.rOk}/${a.rN}` : a.tot ? `En zona ${Math.round((100 * a.inZone) / a.tot)} %` : "";
   },
   valgus(pose, s, shWpx) {
     const hip = P(pose[s > 0 ? L.rHip : L.lHip]), knee = P(pose[s > 0 ? L.rKnee : L.lKnee]), ank = P(pose[s > 0 ? L.rAnk : L.lAnk]);
@@ -508,10 +573,12 @@ const equilibrio = {
     g.trials.push({ set: g.set, posture: g.posture, stance: post.stance || 0,
       inZonePct: a.tot ? (100 * a.inZone) / a.tot : null, sway: a.frames ? (100 * a.dsum) / a.frames : null,
       pathPerS: a.tot ? (100 * a.path) / (a.tot / 1000) : null, touches: a.touches,
-      valgusPct: a.tot ? (100 * a.valgus) / a.tot : null, dualN: a.dualN, dualOk: a.dualOk });
+      valgusPct: a.tot ? (100 * a.valgus) / a.tot : null, dualN: a.dualN, dualOk: a.dualOk,
+      ...(g.cfg.dual === "reach" ? { rN: a.rN, rOk: a.rOk, rT: a.rOk ? a.rT / a.rOk : null, rMax: a.rMax, rHand: a.rHand, rFoot: a.rFoot } : {}) });
   },
   onAbort(g) { if (g.phase === "hold" && g.acc?.tot > 3000) equilibrio.closeSet(g); },
   draw(g) {
+    if (g.cfg.dual === "reach") return equilibrio.drawReach(g);
     // la zona se dibuja ampliada (radio fijo) para que se vea bien; el punto se escala igual
     const { hip, shWpx } = g.ref, z = 1.1 * shWpx, k = z / g.cfg.zone;
     const off = g.off || { x: 0, y: 0 };
@@ -525,6 +592,23 @@ const equilibrio = {
     text(hip.x, hip.y - z - 50, String(left), 70);
     if (g.touching) text(hip.x, hip.y + z + 50, "¡Pie al suelo!", 40, "#feb2b2");
   },
+  drawReach(g) {
+    const { hip, shWpx } = g.ref, t = now();
+    const rc = g.reach;
+    if (rc) {
+      const left = Math.max(0, 1 - (t - rc.t0) / rc.limit);
+      const col = rc.part === "hand" ? "#22d3ee" : "#c6ff3d";
+      ctx.fillStyle = col + "55"; ctx.strokeStyle = col; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(rc.x, rc.y, rc.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(rc.x, rc.y, rc.r + 10, -Math.PI / 2, -Math.PI / 2 + left * Math.PI * 2); ctx.stroke();
+      text(rc.x, rc.y + 12, rc.part === "hand" ? "✋" : "🦶", Math.max(28, rc.r * 0.9));
+    }
+    const secs = Math.max(0, Math.ceil((g.setEnd - t) / 1000));
+    text(hip.x, Math.max(60, g.ref.shY - g.ref.torso * 0.9), `${secs}`, 60);
+    if (g.lvlMsgT && t - g.lvlMsgT < 1200) text(hip.x, hip.y, `¡Nivel ${g.lvl}!`, 56, "#c6ff3d");
+    if (g.touching) text(hip.x, hip.y + 1.4 * shWpx, "¡Pie al suelo!", 40, "#feb2b2");
+  },
   summarize(trials) {
     const sets = trials.filter((t) => t.inZonePct != null);
     const avg = (f, arr = sets) => mean(arr.map(f).filter((v) => v != null));
@@ -536,9 +620,25 @@ const equilibrio = {
       zoneL: Ls.length ? avg((t) => t.inZonePct, Ls) : null, zoneR: Rs.length ? avg((t) => t.inZonePct, Rs) : null,
       touchesL: Ls.reduce((s, t) => s + t.touches, 0), touchesR: Rs.reduce((s, t) => s + t.touches, 0),
       dualN: dn, dualPct: pct(dok, dn),
+      ...(sets.some((t) => t.rN != null) ? (() => {
+        const rs = sets.filter((t) => t.rN != null), sum = (f, a = rs) => a.reduce((x, t) => x + (f(t) || 0), 0);
+        const rL = rs.filter((t) => t.stance < 0), rR = rs.filter((t) => t.stance > 0);
+        return { rN: sum((t) => t.rN), rOk: sum((t) => t.rOk), rPct: pct(sum((t) => t.rOk), sum((t) => t.rN)), rT: avg((t) => t.rT, rs),
+          rMax: Math.max(...rs.map((t) => t.rMax)), rPctL: rL.length ? pct(sum((t) => t.rOk, rL), sum((t) => t.rN, rL)) : null,
+          rPctR: rR.length ? pct(sum((t) => t.rOk, rR), sum((t) => t.rN, rR)) : null };
+      })() : {}),
     };
   },
   asym(m, inj) {
+    if (m.rN != null) {
+      if (m.rPctL == null || m.rPctR == null) return null;
+      if (inj === "izq" || inj === "der") {
+        const d = inj === "izq" ? m.rPctL - m.rPctR : m.rPctR - m.rPctL;
+        return { v: d, txt: `${d > 0 ? "+" : ""}${Math.round(d)} pts`, label: `Alcances: lesionado (${inj}.) vs sano` };
+      }
+      const d = Math.abs(m.rPctL - m.rPctR);
+      return { v: d, txt: `${Math.round(d)} pts`, label: "Diferencia de alcances entre piernas" };
+    }
     if (m.zoneL == null || m.zoneR == null) return null;
     if (inj === "izq" || inj === "der") {
       const d = inj === "izq" ? m.zoneL - m.zoneR : m.zoneR - m.zoneL;
@@ -549,6 +649,7 @@ const equilibrio = {
   },
   results(s) {
     const m = s.summary, a = equilibrio.asym(m, s.injured), mono = m.zoneL != null || m.zoneR != null;
+    if (m.rN != null) return equilibrio.resultsReach(s, m, mono);
     return `
     <div class="stats">
       ${stat(pctTxt(m.inZonePct), "Tiempo dentro de la zona")}
@@ -568,8 +669,29 @@ const equilibrio = {
     </table></div>
     <p class="note">"Rodilla hacia dentro" es un aviso orientativo desde la vista frontal, no una medición clínica.</p>`;
   },
-  histMain: (m) => `${pctTxt(m.inZonePct)} en zona · oscil. ${m.sway != null ? Math.round(m.sway) : "–"}`,
-  histDetail: (m) => (m.zoneL != null || m.zoneR != null ? `En zona I/D: ${pctTxt(m.zoneL)} / ${pctTxt(m.zoneR)} · apoyos ${m.touches}` : `Rodilla dentro ${pctTxt(m.valgusPct)}`),
+  resultsReach(s, m, mono) {
+    const KIND = { hmid: "Mano lateral", hhigh: "Mano arriba", hlow: "Mano abajo", flat: "Pie hacia fuera", fcross: "Pie cruzado" };
+    return `
+    <div class="stats">
+      ${stat(pctTxt(m.rPct), `Alcances logrados (${m.rOk}/${m.rN})`)}
+      ${stat(`${m.rMax} / 6`, "Nivel máximo alcanzado")}
+      ${stat(ms(m.rT), "Tiempo medio por alcance")}
+      ${stat(m.touches, "Apoyos del pie libre")}
+    </div>
+    ${mono ? `<table>
+      <tr><th></th><th>Pierna izq.</th><th>Pierna der.</th></tr>
+      <tr><td>Alcances logrados</td><td>${pctTxt(m.rPctL)}</td><td>${pctTxt(m.rPctR)}</td></tr>
+      <tr><td>Apoyos del pie libre</td><td>${m.zoneL != null ? m.touchesL : "–"}</td><td>${m.zoneR != null ? m.touchesR : "–"}</td></tr>
+    </table>` : ""}
+    <h3>Por serie</h3>
+    <div class="overflow"><table>
+      <tr><th>Serie</th><th>Postura</th><th>Logrados</th><th>Nivel máx.</th><th>Tiempo</th><th>Apoyos</th><th>Rodilla dentro</th></tr>
+      ${s.trials.map((t) => `<tr><td>${t.set}</td><td>${POSTURE[t.posture].label}</td><td>${t.rOk ?? "–"}/${t.rN ?? "–"}</td><td>${t.rMax ?? "–"}</td><td>${ms(t.rT)}</td><td>${t.stance ? t.touches : "–"}</td><td>${pctTxt(t.valgusPct)}</td></tr>`).join("")}
+    </table></div>
+    <p class="note">Niveles: 1 mano a los lados · 2 también arriba · 3 también abajo (sentadilla a una pierna) · 4 pie libre hacia fuera · 5 pie cruzado · 6 más lejos y más rápido. Sube de nivel con 3 aciertos seguidos y baja con 2 fallos.</p>`;
+  },
+  histMain: (m) => (m.rN != null ? `${pctTxt(m.rPct)} alcances · nivel ${m.rMax}` : `${pctTxt(m.inZonePct)} en zona · oscil. ${m.sway != null ? Math.round(m.sway) : "–"}`),
+  histDetail: (m) => (m.rN != null ? `Alcances I/D: ${pctTxt(m.rPctL)} / ${pctTxt(m.rPctR)} · apoyos ${m.touches}` : m.zoneL != null || m.zoneR != null ? `En zona I/D: ${pctTxt(m.zoneL)} / ${pctTxt(m.zoneR)} · apoyos ${m.touches}` : `Rodilla dentro ${pctTxt(m.valgusPct)}`),
 };
 
 // ======================================================================
